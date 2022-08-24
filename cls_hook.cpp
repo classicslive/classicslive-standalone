@@ -1,3 +1,5 @@
+#include <wchar.h>
+
 #include "cls_hook.h"
 
 ClsHook::ClsHook(const cls_window_preset_t *preset)
@@ -35,6 +37,41 @@ bool ClsHook::init()
   if (!m_Handle)
     return false;
 
+  /*HANDLE th = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, m_ProcessId);
+  if (th == INVALID_HANDLE_VALUE)
+    return false;
+  else
+  {
+    MODULEENTRY32 module;
+
+    module.dwSize = sizeof(module);
+    if (Module32First(th, &module))
+    {
+      m_MemoryData = reinterpret_cast<uintptr_t>(module.modBaseAddr);
+      m_MemorySize = module.modBaseSize;
+      do
+      {
+        wprintf(L"%s\n", module.szModule);
+      } while (Module32Next(th, &module));
+    }
+  }
+  CloseHandle(th);*/
+
+  /*MEMORY_BASIC_INFORMATION mbi;
+  auto step = reinterpret_cast<void*>(m_MemoryData);
+  unsigned long long total = 0;
+  while (VirtualQueryEx(m_Handle, step, &mbi, sizeof(mbi)) && total < 0x40000000)
+  {
+    cl_log("%p %u\n", mbi.BaseAddress, mbi.RegionSize);
+    step = reinterpret_cast<uint8_t*>(step) + mbi.RegionSize;
+    if (mbi.RegionSize > 0x40000000)
+      break;
+    total += mbi.RegionSize;
+  }*/
+
+  m_MemoryData = 0;
+  m_MemorySize = 0x02f752D4;
+
   return true;
 }
 
@@ -43,37 +80,42 @@ bool ClsHook::run()
   return true;
 }
 
-bool ClsHook::read(void* dest, cl_addr_t address, unsigned long long size)
+unsigned ClsHook::read(void* dest, cl_addr_t address, unsigned long long size)
 {
 #ifdef WIN32
-  size_t read;
+  size_t read = 0;
 
-  return ReadProcessMemory
+  ReadProcessMemory
   (
     m_Handle,
     reinterpret_cast<LPCVOID>(m_MemoryData + address),
     dest,
     size,
     &read
-  ) && read == size;
+  );
+
+  return static_cast<unsigned>(read);
 #else
   return false;
 #endif
 }
 
-bool ClsHook::write(void* src, cl_addr_t address, unsigned long long size)
+unsigned ClsHook::write(const void* src, cl_addr_t address,
+  unsigned long long size)
 {
 #ifdef WIN32
-  size_t written;
+  size_t written = 0;
 
-  return WriteProcessMemory
+  WriteProcessMemory
   (
     m_Handle,
     reinterpret_cast<void*>(m_MemoryData + address),
     src,
     size,
     &written
-  ) && written == size;
+  );
+
+  return static_cast<unsigned>(written);
 #else
   return false;
 #endif
@@ -95,9 +137,12 @@ bool ClsHook::deepCopy(cl_search_t *search)
       continue;
     }
     else
-      success &= read(sbank->bank->data + sbank->first_valid,
-                      sbank->first_valid,
-                      sbank->last_valid - sbank->first_valid + search->params.size);
+      success &= read
+      (
+        sbank->bank->data + sbank->first_valid,
+        sbank->first_valid,
+        sbank->last_valid - sbank->first_valid + search->params.size
+      ) != 0;
   }
 
   return success;

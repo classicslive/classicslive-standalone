@@ -10,8 +10,8 @@ public:
   bool init() override;
   bool run() override;
 
-  bool read(void *dest, cl_addr_t address, unsigned long long size) override;
-  bool write(void *src, cl_addr_t address, unsigned long long size) override;
+  unsigned read(void *dest, cl_addr_t address, unsigned long long size) override;
+  unsigned write(const void *src, cl_addr_t address, unsigned long long size) override;
   bool deepCopy(cl_search_t *search) override;
 
   uintptr_t memoryData(void) override { return m_AddressForegroundApp; }

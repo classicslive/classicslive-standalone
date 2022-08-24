@@ -57,7 +57,7 @@ bool ClsHookCemu::run()
   return m_CycleCount;
 }
 
-bool ClsHookCemu::read(void *dest, cl_addr_t address, unsigned long long size)
+unsigned ClsHookCemu::read(void *dest, cl_addr_t address, unsigned long long size)
 {
   if (!m_AddressForegroundApp)
     return false;
@@ -65,7 +65,7 @@ bool ClsHookCemu::read(void *dest, cl_addr_t address, unsigned long long size)
     return ClsHook::read(dest, address + m_AddressForegroundApp, size);
 }
 
-bool ClsHookCemu::write(void *src, cl_addr_t address, unsigned long long size)
+unsigned ClsHookCemu::write(const void *src, cl_addr_t address, unsigned long long size)
 {
   if (!m_AddressForegroundApp)
     return false;

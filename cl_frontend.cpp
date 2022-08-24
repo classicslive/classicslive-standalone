@@ -55,7 +55,8 @@ bool cl_fe_install_membanks(void)
     memory.banks = (cl_membank_t*)malloc(sizeof(cl_membank_t));
     bank = &memory.banks[0];
     bank->data = (uint8_t*)malloc(hooks[0]->memorySize());
-    bank->start = 0x10000000;
+    //bank->start = 0x10000000;
+    bank->start = 0;
     bank->size = hooks[0]->memorySize();
     snprintf(bank->title, 256, "%s", cl_fe_library_name());
     memory.bank_count = 1;
@@ -69,7 +70,8 @@ const char* cl_fe_library_name(void)
   return "cemu";
 }
 
-bool cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address, unsigned size)
+unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
+  unsigned size)
 {
   if (hooks.size() != 1)
     return false;
@@ -85,15 +87,22 @@ bool cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address, unsigned
   }
 }
 
-bool cl_fe_memory_write(cl_memory_t *mem, void *src, cl_addr_t address, unsigned size)
+unsigned cl_fe_memory_write(cl_memory_t *mem, const void *src, cl_addr_t address,
+  unsigned size)
 {
   if (hooks.size() != 1)
     return false;
   else
   {
     if (size <= 8)
-      cl_read(src, reinterpret_cast<uint8_t*>(src), 0, size, mem->endianness);
-    return hooks[0]->write(src, address, size);
+    {
+      int64_t temp = 0;
+      cl_read(&temp, reinterpret_cast<const uint8_t*>(src), 0, size, mem->endianness);
+
+      return hooks[0]->write(&temp, address, size);
+    }
+    else
+      return hooks[0]->write(src, address, size);
   }
 }
 
@@ -160,13 +169,14 @@ int main(int argc, char *argv[])
 {
   QApplication a(argc, argv);
 
-  ClsHookCemu b(&cls_window_presets[0]);
+  ClsHook b(&cls_window_presets[1]);
   b.init();
 
   QFileDialog dialog;
 
   dialog.setFileMode(QFileDialog::ExistingFile);
-  dialog.setNameFilter("Wii U executables (*.rpx *.elf)");
+  //dialog.setNameFilter("Wii U executables (*.rpx *.elf)");
+  dialog.setNameFilter("Windows executables (*.exe)");
   dialog.exec();
   auto filename = dialog.selectedFiles()[0].toStdString();
 

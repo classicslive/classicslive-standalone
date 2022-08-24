@@ -40,6 +40,7 @@ struct cls_window_preset_t
 const cls_window_preset_t cls_window_presets[] =
 {
   { "wxWindowNR", /*"Cemu 1.26.2f"*/ "", "cemu", 0x7FF6A6FE6438, 0x40000000 },
+  { "Main", "Kero Blaster", "KeroBlaster", 0, 0 },
 
   { nullptr, nullptr, nullptr, 0, 0 }
 };
@@ -58,16 +59,16 @@ public:
   virtual uint64_t memorySize(void) { return m_MemorySize; }
 
   /**
-   * @brief Extracts a number of bytes from an address in external process
-   *   memory into a provided buffer.
+   * Extracts a number of bytes from an address in external process memory into
+   *   a provided buffer.
    * @param dest Pointer to a buffer to write to.
    * @param address Address to extract process memory from.
    * @param size Number of bytes to read into the buffer.
-   * @return Whether the read fully succeeded; dest could still be modified
-   *   even on failure.
+   * @return The number of bytes successfully read.
+   * @see cl_frontend.h / cl_fe_memory_read
    */
-  virtual bool read(void* dest, cl_addr_t address, unsigned long long size);
-  virtual bool write(void* src, cl_addr_t address, unsigned long long size);
+  virtual unsigned read(void* dest, cl_addr_t address, unsigned long long size);
+  virtual unsigned write(const void* src, cl_addr_t address, unsigned long long size);
 
   /**
    * Extracts as much memory as needed from the host for a search step.
