@@ -12,6 +12,8 @@ DEFINES += \
   CL_EXTERNAL_MEMORY=1 \
   CL_HAVE_EDITOR=1
 
+QMAKE_CFLAGS += -std=c89
+
 INCLUDEPATH += \
   $$PWD/classicslive-integration \
   $$PWD/libretro-common/include \
@@ -56,6 +58,7 @@ SOURCES += \
   cl_frontend.cpp \
   classicslive-integration/cl_action.c \
   classicslive-integration/cl_common.c \
+  classicslive-integration/cl_counter.c \
   classicslive-integration/cl_identify.c \
   classicslive-integration/cl_json.c \
   classicslive-integration/cl_main.c \
@@ -69,6 +72,18 @@ SOURCES += \
   cls_thread.cpp
 
 HEADERS += \
+  classicslive-integration/cl_action.h \
+  classicslive-integration/cl_common.h \
+  classicslive-integration/cl_counter.h \
+  classicslive-integration/cl_frontend.h \
+  classicslive-integration/cl_identify.h \
+  classicslive-integration/cl_json.h \
+  classicslive-integration/cl_main.h \
+  classicslive-integration/cl_memory.h \
+  classicslive-integration/cl_network.h \
+  classicslive-integration/cl_script.h \
+  classicslive-integration/cl_search.h \
+  classicslive-integration/cl_types.h \
   classicslive-integration/editor/cle_action_block.h \
   classicslive-integration/editor/cle_action_block_bookend.h \
   classicslive-integration/editor/cle_action_block_ctrbinary.h \
