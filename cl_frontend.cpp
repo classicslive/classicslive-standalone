@@ -77,13 +77,16 @@ unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
     return false;
   else
   {
-    if (hooks[0]->read(dest, address, size))
-    {
-      if (size <= 8)
-        return cl_read(dest, reinterpret_cast<uint8_t*>(dest), 0, size, mem->endianness);
-    }
+    unsigned read = hooks[0]->read(dest, address, size);
+
+    if (read && size <= 8)
+      return cl_read(dest,
+                     reinterpret_cast<uint8_t*>(dest),
+                     0,
+                     size,
+                     mem->endianness);
     else
-      return false;
+      return read;
   }
 }
 
@@ -139,6 +142,7 @@ void cl_fe_thread(cl_task_t *cl_task)
 
 bool cl_fe_user_data(cl_user_t *user, unsigned index)
 {
+  CL_UNUSED(index);
   user->username = "jacory";
   user->password = "jacory";
   user->language = "en_US";
