@@ -41,6 +41,7 @@ const cls_window_preset_t cls_window_presets[] =
 {
   { "wxWindowNR", /*"Cemu 1.26.2f"*/ "", "cemu", 0x7FF6A6FE6438, 0x40000000 },
   { "Main", "Kero Blaster", "KeroBlaster", 0, 0 },
+  { "gdkWindowToplevel", "Ryujinx 1.1.1015 - SUPER MARIO ODYSSEY v1.3.0 (0100000000010000) (64-bit)", "ryujinx", 0, 0 },
 
   { nullptr, nullptr, nullptr, 0, 0 }
 };

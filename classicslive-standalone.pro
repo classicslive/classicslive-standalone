@@ -21,6 +21,7 @@ INCLUDEPATH += \
   $$PWD/libretro-common/include/vfs
 
 SOURCES += \
+  cls_hook_ryujinx.cpp \
   libretro-common/compat/compat_strl.c \
   libretro-common/compat/fopen_utf8.c \
   libretro-common/encodings/encoding_base64.c \
@@ -99,6 +100,7 @@ HEADERS += \
   classicslive-integration/editor/cle_script_editor_block.h \
   cls_hook.h \
   cls_hook_cemu.h \
+  cls_hook_ryujinx.h \
   cls_main.h \
   cls_network_manager.h \
   cls_thread.h

@@ -3,6 +3,7 @@
 #include <QTimer>
 
 #include "cls_hook.h"
+#include "cls_hook_ryujinx.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
 #include "cls_thread.h"
@@ -48,9 +49,6 @@ bool cl_fe_install_membanks(void)
   else
   {
     cl_membank_t* bank;
-
-    if (hooks.size() != 1)
-      return false;
 
     memory.banks = (cl_membank_t*)malloc(sizeof(cl_membank_t));
     bank = &memory.banks[0];
@@ -173,8 +171,11 @@ int main(int argc, char *argv[])
 {
   QApplication a(argc, argv);
 
-  ClsHook b(&cls_window_presets[1]);
-  b.init();
+  //ClsHook b(&cls_window_presets[1]);
+  //b.init();
+
+  ClsHookRyujinx hook(&cls_window_presets[2]);
+  hook.init();
 
   QFileDialog dialog;
 
@@ -185,7 +186,7 @@ int main(int argc, char *argv[])
   auto filename = dialog.selectedFiles()[0].toStdString();
 
   session.ready = false;
-  hooks.push_back(&b);
+  hooks.push_back(&hook);
 
   cl_init(nullptr, 0, filename.c_str());
 
