@@ -24,9 +24,10 @@ void ClsNetworkManager::onFinished(QNetworkReply *reply)
 {
   auto cb = m_Requests.at(reply);
   cl_network_response_t response;
+  auto error_msg = reply->errorString().toStdString();
 
   response.error_code = reply->error();
-  response.error_msg = reply->errorString().toStdString().c_str();
+  response.error_msg = error_msg.c_str();
 
   if (response.error_code)
     cl_fe_display_message(CL_MSG_ERROR, response.error_msg);
@@ -60,6 +61,11 @@ void ClsNetworkManager::onRequest(const char *url, char *data, cls_net_cb callba
   QNetworkRequest request;
   request.setHeader(QNetworkRequest::ContentTypeHeader,
                     QStringLiteral("application/x-www-form-urlencoded"));
+#ifdef GIT_VERSION
+  request.setRawHeader("User-Agent", QStringLiteral("classicslive-standalone %1").arg(GIT_VERSION).toUtf8());
+#else
+  request.setRawHeader("User-Agent", "classicslive-standalone");
+#endif
   request.setUrl(QUrl(url));
 
   QByteArray post_data;
