@@ -3,6 +3,15 @@
 
 #include "cls_hook.h"
 
+typedef struct
+{
+  /* Big endian */
+  uint64_t title_id;
+
+  /* Big endian */
+  uint64_t version;
+} cl_identify_cafe_t;
+
 class ClsHookCemu : public ClsHook
 {
 public:
@@ -10,14 +19,16 @@ public:
   bool init() override;
   bool run() override;
 
-  unsigned read(void *dest, cl_addr_t address, unsigned long long size) override;
-  unsigned write(const void *src, cl_addr_t address, unsigned long long size) override;
+  size_t read(void *dest, cl_addr_t address, size_t size) override;
+  size_t write(const void *src, cl_addr_t address, size_t size) override;
   bool deepCopy(cl_search_t *search) override;
+  bool getIdentification(uint8_t **data, unsigned int *size) override;
 
   uintptr_t memoryData(void) override { return m_AddressForegroundApp; }
   uint64_t memorySize(void) override { return 0x40000000; }
 
 private:
+  cl_identify_cafe_t m_Identification;
   uintptr_t m_AddressCemuModule = 0;
   uintptr_t m_AddressForegroundApp = 0;
   uint32_t m_CycleCount = 0;

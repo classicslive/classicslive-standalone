@@ -1,4 +1,56 @@
+#include <QString>
+#include <QtEndian>
+
 #include "cls_hook_cemu.h"
+
+static bool get_title_id(cl_identify_cafe_t *ident, const QString &str)
+{
+  int position = -1;
+
+  /* Find the first closed parentheses in the string */
+  for (int i = str.length() - 1; i >= 0; i--)
+  {
+    QChar ch = str[i];
+
+    if (ch == ']')
+    {
+      position = i;
+      break;
+    }
+  }
+  if (position == -1)
+    return false;
+
+  /* Find its matching 'v', use to get the version */
+  int v_pos = str.lastIndexOf('v', position);
+  if (v_pos == -1)
+    return false;
+
+  /* Cast the version to a big endian 16-bit integer */
+  QString version_string = str.mid(v_pos + 1,
+                                   position - v_pos - 1);
+  bool ok;
+  uint16_t version = version_string.toUShort(&ok, 10);
+  if (!ok)
+    return false;
+  qToBigEndian(version, &ident->version);
+
+  /* Get the title ID by reading between the next brackets */
+  int closed_pos = str.lastIndexOf(']', v_pos);
+  int open_pos = str.lastIndexOf(' ', closed_pos);
+  QString title_id_string = str.mid(open_pos + 1,
+                                    closed_pos - open_pos - 1).remove('-');
+  if (title_id_string.isEmpty())
+    return false;
+
+  /* Copy it into the identification struct and set the remainder to 00 */
+  uint64_t title_id = title_id_string.toULongLong(&ok, 16);
+  if (!ok)
+    return false;
+  qToBigEndian(title_id, &ident->title_id);
+
+  return true;
+}
 
 uintptr_t GetModuleBaseAddress(unsigned process_id, const wchar_t* module_name)
 {
@@ -31,6 +83,21 @@ ClsHookCemu::ClsHookCemu(const cls_window_preset_t *preset)
   m_Preset = preset;
 }
 
+bool ClsHookCemu::getIdentification(uint8_t **data, unsigned int *size)
+{
+  char window_title[256];
+
+  GetWindowTextA(m_Window, window_title, sizeof(window_title));
+  if (!get_title_id(&m_Identification, QString(window_title)))
+    return false;
+  else
+  {
+    *data = reinterpret_cast<uint8_t*>(&m_Identification);
+    *size = sizeof(m_Identification);
+    return true;
+  }
+}
+
 bool ClsHookCemu::init()
 {
   if (!ClsHook::init())
@@ -57,7 +124,7 @@ bool ClsHookCemu::run()
   return m_CycleCount;
 }
 
-unsigned ClsHookCemu::read(void *dest, cl_addr_t address, unsigned long long size)
+size_t ClsHookCemu::read(void *dest, cl_addr_t address, size_t size)
 {
   if (!m_AddressForegroundApp)
     return false;
@@ -65,7 +132,7 @@ unsigned ClsHookCemu::read(void *dest, cl_addr_t address, unsigned long long siz
     return ClsHook::read(dest, address + m_AddressForegroundApp, size);
 }
 
-unsigned ClsHookCemu::write(const void *src, cl_addr_t address, unsigned long long size)
+size_t ClsHookCemu::write(const void *src, cl_addr_t address, size_t size)
 {
   if (!m_AddressForegroundApp)
     return false;
