@@ -37,11 +37,22 @@ struct cls_window_preset_t
   uint64_t memory_size;
 };
 
+typedef struct
+{
+  /* The size of the target memory region */
+  uint64_t size;
+
+  /* The amount to offset the base after finding region of specified size */
+  uint64_t offset;
+} cls_find_memory_region;
+
 const cls_window_preset_t cls_window_presets[] =
 {
   { "wxWindowNR", /*"Cemu 1.26.2f"*/ "", "cemu", 0x7FF6A6FE6438, 0x40000000 },
   { "Main", "Kero Blaster", "KeroBlaster", 0, 0 },
-  { "gdkWindowToplevel", "Ryujinx 1.1.1015 - SUPER MARIO ODYSSEY v1.3.0 (0100000000010000) (64-bit)", "ryujinx", 0, 0 },
+  { "gdkWindowToplevel", "", "ryujinx", 0, 0 },
+  { "SDL_app", "", "touchHLE", 0, 0 },
+  { "GLFW30", /*"^Infuse .*"*/ "", "Infuse", 0, 0 },
 
   { nullptr, nullptr, nullptr, 0, 0 }
 };
@@ -68,8 +79,8 @@ public:
    * @return The number of bytes successfully read.
    * @see cl_frontend.h / cl_fe_memory_read
    */
-  virtual unsigned read(void* dest, cl_addr_t address, unsigned long long size);
-  virtual unsigned write(const void* src, cl_addr_t address, unsigned long long size);
+  virtual size_t read(void* dest, cl_addr_t address, size_t size);
+  virtual size_t write(const void* src, cl_addr_t address, size_t size);
 
   /**
    * Extracts as much memory as needed from the host for a search step.
@@ -77,20 +88,26 @@ public:
    **/
   virtual bool deepCopy(cl_search_t *search);
 
+  virtual bool getIdentification(uint8_t **data, unsigned *size) {}
+
   virtual bool pause(void);
   virtual bool unpause(void);
+
+  bool initViaMemoryRegions(const cls_find_memory_region fvmr);
 
 protected:
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
-  uintptr_t    m_MemoryData = 0;
-  uint64_t     m_MemorySize = 0;
+  uintptr_t m_MemoryData = 0;
+  uint64_t m_MemorySize = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
 #ifdef WIN32
-  HWND   m_Window;
+  HWND m_Window;
   HANDLE m_Handle;
-  DWORD  m_ProcessId;
+  DWORD m_ProcessId;
+#elif __linux__
+  pid_t m_ProcessId;
 #endif
 };
 

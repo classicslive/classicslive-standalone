@@ -1,10 +1,13 @@
-QT += core gui network
+QT += core gui network multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 LIBS += -LPsapi.lib -lpsapi
 
+GIT_VERSION = $$system(git describe --tags)
+
 DEFINES += \
+  GIT_VERSION=\\\"$$GIT_VERSION\\\" \
   HAVE_CHD \
   HAVE_STRL \
   WANT_SUBCODE \
@@ -21,7 +24,9 @@ INCLUDEPATH += \
   $$PWD/libretro-common/include/vfs
 
 SOURCES += \
+  cls_hook_infuse.cpp \
   cls_hook_ryujinx.cpp \
+  cls_hook_touchhle.cpp \
   libretro-common/compat/compat_strl.c \
   libretro-common/compat/fopen_utf8.c \
   libretro-common/encodings/encoding_base64.c \
@@ -59,6 +64,7 @@ SOURCES += \
   cl_frontend.cpp \
   classicslive-integration/cl_action.c \
   classicslive-integration/cl_common.c \
+  classicslive-integration/cl_config.c \
   classicslive-integration/cl_counter.c \
   classicslive-integration/cl_identify.c \
   classicslive-integration/cl_json.c \
@@ -75,6 +81,7 @@ SOURCES += \
 HEADERS += \
   classicslive-integration/cl_action.h \
   classicslive-integration/cl_common.h \
+  classicslive-integration/cl_config.h \
   classicslive-integration/cl_counter.h \
   classicslive-integration/cl_frontend.h \
   classicslive-integration/cl_identify.h \
@@ -100,7 +107,10 @@ HEADERS += \
   classicslive-integration/editor/cle_script_editor_block.h \
   cls_hook.h \
   cls_hook_cemu.h \
+  cls_hook_dialog.h \
+  cls_hook_infuse.h \
   cls_hook_ryujinx.h \
+  cls_hook_touchhle.h \
   cls_main.h \
   cls_network_manager.h \
   cls_thread.h

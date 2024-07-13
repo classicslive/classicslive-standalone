@@ -1,5 +1,10 @@
 #include <wchar.h>
 
+#ifdef __linux__
+#include <sys/uio.h>
+#include <unistd.h>
+#endif
+
 #include "cls_hook.h"
 
 ClsHook::ClsHook(const cls_window_preset_t *preset)
@@ -75,33 +80,66 @@ bool ClsHook::init()
   return true;
 }
 
-bool ClsHook::run()
+bool ClsHook::initViaMemoryRegions(const cls_find_memory_region fvmr)
 {
-  return true;
+  MEMORY_BASIC_INFORMATION memory;
+  char *addr = nullptr;
+  while (VirtualQueryEx(m_Handle, reinterpret_cast<LPCVOID>(addr), &memory,
+                        sizeof(MEMORY_BASIC_INFORMATION)))
+  {
+    if (memory.RegionSize == fvmr.size && memory.Protect == PAGE_READWRITE)
+    {
+      m_MemoryData = reinterpret_cast<uintptr_t>(memory.BaseAddress) + fvmr.offset;
+      return true;
+    }
+    addr += memory.RegionSize;
+  }
+
+  return false;
 }
 
-unsigned ClsHook::read(void* dest, cl_addr_t address, unsigned long long size)
+bool ClsHook::run()
 {
 #ifdef WIN32
-  size_t read = 0;
-
-  ReadProcessMemory
-  (
-    m_Handle,
-    reinterpret_cast<LPCVOID>(m_MemoryData + address),
-    dest,
-    size,
-    &read
-  );
-
-  return static_cast<unsigned>(read);
+  return IsWindow(m_Window);
 #else
   return false;
 #endif
 }
 
-unsigned ClsHook::write(const void* src, cl_addr_t address,
-  unsigned long long size)
+size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
+{
+#ifdef WIN32
+  size_t read = 0;
+
+  ReadProcessMemory(m_Handle,
+                    reinterpret_cast<LPCVOID>(m_MemoryData + address),
+                    dest, size, &read);
+
+  return read;
+#elif __linux__
+  struct iovec local_iov;
+  struct iovec remote_iov;
+
+  local_iov.iov_base = dest;
+  local_iov.iov_len = size;
+
+  remote_iov.iov_base = reinterpret_cast<void*>(address);
+  remote_iov.iov_len = size;
+
+  ssize_t bytes_read = process_vm_readv(m_ProcessId, &local_iov, 1,
+                                        &remote_iov, 1, 0);
+
+  if (bytes_read == -1)
+    return 0;
+  else
+    return static_cast<size_t>(bytes_read);
+#else
+  return 0;
+#endif
+}
+
+size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
 {
 #ifdef WIN32
   size_t written = 0;
@@ -115,7 +153,7 @@ unsigned ClsHook::write(const void* src, cl_addr_t address,
     &written
   );
 
-  return static_cast<unsigned>(written);
+  return written;
 #else
   return false;
 #endif
@@ -127,7 +165,7 @@ bool ClsHook::deepCopy(cl_search_t *search)
 
   if (!search)
     return false;
-  for (int i = 0; i < search->searchbank_count; i++)
+  for (unsigned i = 0; i < search->searchbank_count; i++)
   {
     auto sbank = &search->searchbanks[i];
 
@@ -153,7 +191,7 @@ bool ClsHook::pause(void)
 #ifdef WIN32
   return DebugActiveProcess(m_ProcessId);
 #else
-  return false;
+  return kill(m_ProcessId, SIGSTOP) == 0;
 #endif
 }
 
@@ -162,6 +200,6 @@ bool ClsHook::unpause(void)
 #ifdef WIN32
   return DebugActiveProcessStop(m_ProcessId);
 #else
-  return false;
+  return kill(m_ProcessId, SIGCONT) == 0;
 #endif
 }
