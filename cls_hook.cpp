@@ -1,14 +1,16 @@
 #include <wchar.h>
 
 #ifdef __linux__
+#include <signal.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #endif
 
 #include "cls_hook.h"
 
-ClsHook::ClsHook(const cls_window_preset_t *preset)
+ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset)
 {
+  m_ProcessId = pid;
   m_Preset = preset;
 }
 
@@ -18,6 +20,7 @@ ClsHook::~ClsHook()
 
 bool ClsHook::init()
 {
+#ifdef WIN32
   const int wsize = 256;
   wchar_t wide_class[wsize];
   wchar_t wide_title[wsize];
@@ -76,14 +79,17 @@ bool ClsHook::init()
 
   m_MemoryData = 0;
   m_MemorySize = 0x02f752D4;
+#endif
 
   return true;
 }
 
-bool ClsHook::initViaMemoryRegions(const cls_find_memory_region fvmr)
+bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 {
+#ifdef WIN32
   MEMORY_BASIC_INFORMATION memory;
   char *addr = nullptr;
+
   while (VirtualQueryEx(m_Handle, reinterpret_cast<LPCVOID>(addr), &memory,
                         sizeof(MEMORY_BASIC_INFORMATION)))
   {
@@ -94,7 +100,35 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region fvmr)
     }
     addr += memory.RegionSize;
   }
+#else
+  char line[256];
+  char map_path[256];
+  FILE *map_file = nullptr;
+  uintptr_t addr_start, addr_end, size;
 
+  if (!m_ProcessId)
+    return false;
+  snprintf(map_path, sizeof(map_path), "/proc/%d/maps", m_ProcessId);
+  map_file = fopen(map_path, "r");
+  if (!map_file)
+    return false;
+
+  while (fgets(line, sizeof(line), map_file))
+  {
+    if (sscanf(line, "%lx-%lx", &addr_start, &addr_end) == 2)
+    {
+      size = addr_end - addr_start;
+      if (size == fvmr.size)
+      {
+        m_MemoryData = reinterpret_cast<uintptr_t>(addr_start) + fvmr.offset;
+        fclose(map_file);
+
+        return true;
+      }
+    }
+  }
+  fclose(map_file);
+#endif
   return false;
 }
 
@@ -120,20 +154,21 @@ size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
 #elif __linux__
   struct iovec local_iov;
   struct iovec remote_iov;
+  ssize_t read = 0;
 
   local_iov.iov_base = dest;
   local_iov.iov_len = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(address);
+  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
   remote_iov.iov_len = size;
 
-  ssize_t bytes_read = process_vm_readv(m_ProcessId, &local_iov, 1,
-                                        &remote_iov, 1, 0);
+  read = process_vm_readv(m_ProcessId, &local_iov, 1,
+                          &remote_iov, 1, 0);
 
-  if (bytes_read == -1)
+  if (read < 0)
     return 0;
   else
-    return static_cast<size_t>(bytes_read);
+    return static_cast<size_t>(read);
 #else
   return 0;
 #endif
@@ -154,6 +189,24 @@ size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
   );
 
   return written;
+#elif __linux__
+  struct iovec local_iov;
+  struct iovec remote_iov;
+  ssize_t written = 0;
+
+  local_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
+  local_iov.iov_len = size;
+
+  remote_iov.iov_base = const_cast<void*>(src);
+  remote_iov.iov_len = size;
+
+  written = process_vm_writev(m_ProcessId, &local_iov, 1,
+                              &remote_iov, 1, 0);
+
+  if (written < 0)
+    return 0;
+  else
+    return static_cast<size_t>(written);
 #else
   return false;
 #endif
@@ -169,7 +222,7 @@ bool ClsHook::deepCopy(cl_search_t *search)
   {
     auto sbank = &search->searchbanks[i];
 
-    if (!sbank->bank->data)
+    if (!sbank->region->base_host)
     {
       success = false;
       continue;
@@ -177,7 +230,7 @@ bool ClsHook::deepCopy(cl_search_t *search)
     else
       success &= read
       (
-        sbank->bank->data + sbank->first_valid,
+        (uint8_t*)sbank->region->base_host + sbank->first_valid,
         sbank->first_valid,
         sbank->last_valid - sbank->first_valid + search->params.size
       ) != 0;

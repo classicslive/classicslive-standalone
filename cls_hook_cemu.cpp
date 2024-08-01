@@ -1,3 +1,5 @@
+#ifdef WIN32
+
 #include <QString>
 #include <QtEndian>
 
@@ -150,3 +152,5 @@ bool ClsHookCemu::deepCopy(cl_search_t *search)
     search->searchbanks[0].first_valid + 0x10000000,
     search->searchbanks[0].last_valid - search->searchbanks[0].first_valid + search->params.size);
 }
+
+#endif

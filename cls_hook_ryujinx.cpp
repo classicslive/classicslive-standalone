@@ -3,7 +3,7 @@
 
 #include "cls_hook_ryujinx.h"
 
-ClsHookRyujinx::ClsHookRyujinx(const cls_window_preset_t *preset) : ClsHook(preset) {}
+ClsHookRyujinx::ClsHookRyujinx(unsigned pid, const cls_window_preset_t *preset) : ClsHook(pid, preset) {}
 
 static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
 {
@@ -60,6 +60,7 @@ static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
 
 bool ClsHookRyujinx::getIdentification(uint8_t **data, unsigned int *size)
 {
+#if WIN32
   char window_title[256];
 
   GetWindowTextA(m_Window, window_title, sizeof(window_title));
@@ -71,35 +72,20 @@ bool ClsHookRyujinx::getIdentification(uint8_t **data, unsigned int *size)
     *size = sizeof(m_Identification);
     return true;
   }
+#else
+  return false;
+#endif
 }
 
+/**
+ * @todo Re-confirm this
+ */
 bool ClsHookRyujinx::init(void)
 {
   if (!ClsHook::init())
     return false;
   else
-  {
-    /**
-     * Query all memory regions looking for one of size 3GB. This seems to be
-     * the reported memory usage of most NX games, but not all.
-     * @todo This needs to be able to support more games.
-     */
-    MEMORY_BASIC_INFORMATION memory;
-    char *addr = nullptr;
-    while (VirtualQueryEx(m_Handle, reinterpret_cast<LPCVOID>(addr), &memory,
-                          sizeof(MEMORY_BASIC_INFORMATION)))
-    {
-      if (memory.RegionSize == memorySize() && memory.Type == MEM_MAPPED &&
-          memory.Protect == PAGE_READWRITE && memory.State == MEM_COMMIT)
-      {
-        m_AddressForegroundApp = reinterpret_cast<uintptr_t>(memory.BaseAddress);
-        return true;
-      }
-      addr += memory.RegionSize;
-    }
-
-    return false;
-  }
+    return initViaMemoryRegions({ memorySize(), 0 });
 }
 
 bool ClsHookRyujinx::run(void)
@@ -125,11 +111,11 @@ size_t ClsHookRyujinx::write(const void *src, cl_addr_t address, size_t size)
 
 bool ClsHookRyujinx::deepCopy(cl_search_t *search)
 {
-  if (!search || search->searchbank_count != 1 || !search->searchbanks->bank[0].data)
+  if (!search || search->searchbank_count != 1 || !search->searchbanks->region->base_host)
     return false;
 
   return read(
-    search->searchbanks[0].bank->data + search->searchbanks[0].first_valid,
+    (uint8_t*)search->searchbanks[0].region->base_host + search->searchbanks[0].first_valid,
     search->searchbanks[0].first_valid,
     search->searchbanks[0].last_valid - search->searchbanks[0].first_valid + search->params.size);
 }

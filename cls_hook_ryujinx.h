@@ -32,7 +32,7 @@ typedef struct
 class ClsHookRyujinx : public ClsHook
 {
 public:
-  ClsHookRyujinx(const cls_window_preset_t *preset);
+  ClsHookRyujinx(unsigned pid = 0, const cls_window_preset_t *preset = nullptr);
 
   bool init() override;
   bool run() override;
@@ -40,6 +40,7 @@ public:
   size_t write(const void *src, cl_addr_t address, size_t size) override;
   bool deepCopy(cl_search_t *search) override;
   bool getIdentification(uint8_t **data, unsigned *size) override;
+  const char *getLibrary(void) override { return "ryujinx"; }
 
   uintptr_t memoryData(void) override { return m_AddressForegroundApp; }
 

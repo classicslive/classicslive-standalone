@@ -24,11 +24,12 @@ typedef struct
 class ClsHookTouchhle : public ClsHook
 {
 public:
-  ClsHookTouchhle(const cls_window_preset_t *preset);
+  ClsHookTouchhle(unsigned pid = 0, const cls_window_preset_t *preset = nullptr);
 
   bool init() override;
   bool run() override;
   bool getIdentification(uint8_t **data, unsigned *size) override;
+  const char *getLibrary(void) override { return "touchhle"; }
 
   /**
    * The emulator allocates the entire 32-bit address space, but currently it

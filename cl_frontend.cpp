@@ -1,11 +1,14 @@
+#include <QApplication>
+#include <QFileDialog>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QTimer>
 
 #include "cls_hook.h"
-#include "cls_hook_ryujinx.h"
+#include "cls_hook_infuse.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
+#include "cls_process_select.h"
 #include "cls_thread.h"
 
 extern "C"
@@ -48,16 +51,15 @@ bool cl_fe_install_membanks(void)
     return false;
   else
   {
-    cl_membank_t* bank;
+    cl_memory_region_t* region;
 
-    memory.banks = (cl_membank_t*)malloc(sizeof(cl_membank_t));
-    bank = &memory.banks[0];
-    bank->data = (uint8_t*)malloc(hooks[0]->memorySize());
-    //bank->start = 0x10000000;
-    bank->start = 0;
-    bank->size = hooks[0]->memorySize();
-    snprintf(bank->title, 256, "%s", cl_fe_library_name());
-    memory.bank_count = 1;
+    memory.regions = (cl_memory_region_t*)calloc(1, sizeof(cl_memory_region_t));
+    region = &memory.regions[0];
+    region->base_host = (uint8_t*)malloc(hooks[0]->memorySize());
+    region->base_guest = 0;
+    region->size = hooks[0]->memorySize();
+    snprintf(region->title, 256, "%s", cl_fe_library_name());
+    memory.region_count = 1;
 
     return true;
   }
@@ -65,7 +67,10 @@ bool cl_fe_install_membanks(void)
 
 const char* cl_fe_library_name(void)
 {
-  return "cemu";
+  if (hooks.size() == 1)
+    return hooks[0]->getLibrary();
+  else
+    return nullptr;
 }
 
 unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
@@ -82,7 +87,7 @@ unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
                      reinterpret_cast<uint8_t*>(dest),
                      0,
                      size,
-                     mem->endianness);
+                     memory.regions[0].endianness);
     else
       return read;
   }
@@ -98,7 +103,7 @@ unsigned cl_fe_memory_write(cl_memory_t *mem, const void *src, cl_addr_t address
     if (size <= 8)
     {
       int64_t temp = 0;
-      cl_read(&temp, reinterpret_cast<const uint8_t*>(src), 0, size, mem->endianness);
+      cl_read(&temp, reinterpret_cast<const uint8_t*>(src), 0, size, memory.regions[0].endianness);
 
       return hooks[0]->write(&temp, address, size);
     }
@@ -141,17 +146,12 @@ void cl_fe_thread(cl_task_t *cl_task)
 bool cl_fe_user_data(cl_user_t *user, unsigned index)
 {
   CL_UNUSED(index);
-  user->username = "jacory";
-  user->password = "jacory";
-  user->language = "en_US";
+  snprintf(user->username, sizeof(user->username), "%s", "jacory");
+  snprintf(user->password, sizeof(user->password), "%s", "jacory");
+  snprintf(user->language, sizeof(user->language), "%s", "en_US");
 
   return true;
 }
-
-#include <QApplication>
-#include <QFileDialog>
-
-#include <cls_hook_cemu.h>
 
 ClsMain::ClsMain()
 {
@@ -159,12 +159,31 @@ ClsMain::ClsMain()
   timer->setInterval(16);
   connect(timer, SIGNAL(timeout()), this, SLOT(run()));
   timer->start();
+
+  ClsProcessSelect *select = new ClsProcessSelect(nullptr);
+  connect(select, SIGNAL(selected(uint)), this, SLOT(selected(uint)));
+  select->show();
 }
 
 void ClsMain::run()
 {
   if (hooks.size() == 1 && hooks[0]->run())
     cl_run();
+}
+
+void ClsMain::selected(uint pid)
+{
+  ClsHookInfuse *hook = new ClsHookInfuse(pid);
+  uint8_t *data;
+  unsigned size;
+
+  if (hook->init() && hook->getIdentification(&data, &size))
+  {
+    session.ready = false;
+    hooks.push_back(hook);
+
+    cl_init(data, size, "");
+  }
 }
 
 int main(int argc, char *argv[])
@@ -174,21 +193,21 @@ int main(int argc, char *argv[])
   //ClsHook b(&cls_window_presets[1]);
   //b.init();
 
-  ClsHookRyujinx hook(&cls_window_presets[2]);
-  hook.init();
+  //ClsHookRyujinx hook(&cls_window_presets[2]);
+  //hook.init();
 
-  QFileDialog dialog;
+  //QFileDialog dialog;
 
-  dialog.setFileMode(QFileDialog::ExistingFile);
+  //dialog.setFileMode(QFileDialog::ExistingFile);
   //dialog.setNameFilter("Wii U executables (*.rpx *.elf)");
-  dialog.setNameFilter("Windows executables (*.exe)");
-  dialog.exec();
-  auto filename = dialog.selectedFiles()[0].toStdString();
+  //dialog.setNameFilter("Windows executables (*.exe)");
+  //dialog.exec();
+  //auto filename = dialog.selectedFiles()[0].toStdString();
 
-  session.ready = false;
-  hooks.push_back(&hook);
+  //session.ready = false;
+  //hooks.push_back(&hook);
 
-  cl_init(nullptr, 0, filename.c_str());
+  //cl_init(nullptr, 0, filename.c_str());
 
   ClsMain clsmain;
   clsmain.show();

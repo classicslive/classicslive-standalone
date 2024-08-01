@@ -1,6 +1,6 @@
 #include "cls_hook_touchhle.h"
 
-ClsHookTouchhle::ClsHookTouchhle(const cls_window_preset_t *preset) : ClsHook(preset) {}
+ClsHookTouchhle::ClsHookTouchhle(unsigned pid, const cls_window_preset_t *preset) : ClsHook(pid, preset) {}
 
 static cl_identify_bundle_t test_bundle = { "jp.co.capcom.res4", "1.00.00" };
 
