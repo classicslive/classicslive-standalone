@@ -13,6 +13,7 @@ public:
 
 public slots:
   void run();
+  void selected(uint pid);
 
 private:
   QTimer *timer;

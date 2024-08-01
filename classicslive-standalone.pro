@@ -2,31 +2,26 @@ QT += core gui network multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-LIBS += -LPsapi.lib -lpsapi
+win32 {
+  LIBS += -LPsapi.lib -lpsapi
+}
 
 GIT_VERSION = $$system(git describe --tags)
 
 DEFINES += \
   GIT_VERSION=\\\"$$GIT_VERSION\\\" \
-  HAVE_CHD \
-  HAVE_STRL \
-  WANT_SUBCODE \
-  WANT_RAW_DATA_SECTOR \
   CL_EXTERNAL_MEMORY=1 \
   CL_HAVE_EDITOR=1
 
-QMAKE_CFLAGS += -std=c89
-
 INCLUDEPATH += \
   $$PWD/classicslive-integration \
-  $$PWD/libretro-common/include \
-  $$PWD/libretro-common/include/libchdr \
-  $$PWD/libretro-common/include/vfs
+  $$PWD/libretro-common/include
 
 SOURCES += \
   cls_hook_infuse.cpp \
   cls_hook_ryujinx.cpp \
   cls_hook_touchhle.cpp \
+  cls_process_select.cpp \
   libretro-common/compat/compat_strl.c \
   libretro-common/compat/fopen_utf8.c \
   libretro-common/encodings/encoding_base64.c \
@@ -107,10 +102,10 @@ HEADERS += \
   classicslive-integration/editor/cle_script_editor_block.h \
   cls_hook.h \
   cls_hook_cemu.h \
-  cls_hook_dialog.h \
   cls_hook_infuse.h \
   cls_hook_ryujinx.h \
   cls_hook_touchhle.h \
   cls_main.h \
   cls_network_manager.h \
+  cls_process_select.h \
   cls_thread.h
