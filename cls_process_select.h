@@ -37,7 +37,6 @@ public:
 public slots:
   int refresh(void);
   void onHookButtonClicked(void);
-  void resizeEvent(QResizeEvent *event) override;
 
 signals:
   void selected(unsigned pid);

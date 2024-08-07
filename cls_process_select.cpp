@@ -1,4 +1,7 @@
+#include "cls_hook.h"
 #include "cls_process_select.h"
+
+#include <regex>
 
 #include <QHeaderView>
 #include <QTimer>
@@ -9,7 +12,7 @@ ClsProcessSelect::ClsProcessSelect(QWidget *parent) : QWidget(parent)
 
   m_Table->setColumnCount(4);
   m_Table->setHorizontalHeaderLabels(QStringList() <<
-    "Title" << "PID" << "CPU" << "Memory");
+    "Title" << "PID" << "CPU" << "RAM");
   m_Table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_Table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
   m_Table->verticalHeader()->setVisible(false);
@@ -43,27 +46,35 @@ void ClsProcessSelect::onHookButtonClicked(void)
   }
 }
 
-void ClsProcessSelect::resizeEvent(QResizeEvent *event)
-{
-  QWidget::resizeEvent(event);
-
-  int width = m_Table->width();
-  m_Table->horizontalHeader()->resizeSection(CLS_COLUMN_TITLE, width * 0.50);
-  m_Table->horizontalHeader()->resizeSection(CLS_COLUMN_PID, width * 0.1667);
-  m_Table->horizontalHeader()->resizeSection(CLS_COLUMN_CPU, width * 0.1667);
-  m_Table->horizontalHeader()->resizeSection(CLS_COLUMN_MEMORY, width * 0.1667);
-}
-
 int ClsProcessSelect::refresh(void)
 {
 #ifdef WIN32
 #error "todo"
 #elif defined(__linux__)
-  /* Compactly, with no Header, Running, only for current User. */
-  const char *cmd = "ps chrux --sort=-%cpu";
+  /**
+   * Enumerate all processes Compactly, with no Header, and only for current
+   * User. Sort by CPU usage.
+   */
+  const char *cmd = "ps -e chux --sort=-%cpu";
   FILE *cmd_file = nullptr;
   char line[256];
   int i = 0;
+
+  /* Retain highlighted item */
+  if (m_Table->selectedItems().count())
+  {
+    int row = m_Table->selectedItems()[0]->row();
+
+    snprintf(m_Processes[0].title, sizeof(m_Processes[0].title), "%s",
+      m_Table->item(row, CLS_COLUMN_TITLE)->text().toStdString().c_str());
+    m_Processes[0].pid =
+      m_Table->item(row, CLS_COLUMN_PID)->text().toULong();
+    m_Processes[0].cpu =
+      m_Table->item(row, CLS_COLUMN_CPU)->text().toFloat();
+    m_Processes[0].memory =
+      m_Table->item(row, CLS_COLUMN_MEMORY)->text().toULong();
+    i++;
+  }
 
   /* Refresh the processes list */
   cmd_file = popen(cmd, "r");
@@ -77,8 +88,10 @@ int ClsProcessSelect::refresh(void)
                &process.memory,
                process.title) == 4)
     {
-      /* Ignore ourself */
-      if (strncmp(process.title, "ps", sizeof(process.title)))
+      /* Ignore ourself, and processes with no memory commit */
+      if (strncmp(process.title, "ps", sizeof(process.title)) &&
+          strncmp(process.title, "classicslive", strlen("classicslive")) &&
+          process.memory && process.cpu)
       {
         m_Processes[i] = process;
         i++;
@@ -96,9 +109,15 @@ int ClsProcessSelect::refresh(void)
     m_Table->setItem(i, CLS_COLUMN_PID,
       new QTableWidgetItem(QString::number(m_Processes[i].pid)));
     m_Table->setItem(i, CLS_COLUMN_CPU,
-      new QTableWidgetItem(QString::number(m_Processes[i].cpu)));
+      new QTableWidgetItem(QString::number(m_Processes[i].cpu, 'f', 1)));
     m_Table->setItem(i, CLS_COLUMN_MEMORY,
       new QTableWidgetItem(QString::number(m_Processes[i].memory)));
+
+    /* Highlight known processes */
+    for (unsigned j = 0; j < sizeof(cls_window_presets) / sizeof(cls_window_preset_t) - 1; j++)
+      if (std::regex_match(std::string(m_Processes[i].title),
+                           std::regex(cls_window_presets[j].process_title)))
+        m_Table->itemAt(i, CLS_COLUMN_TITLE)->setBackground(QBrush(QColor(200, 200, 255)));
   }
 
   return i;
