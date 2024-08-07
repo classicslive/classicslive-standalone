@@ -26,9 +26,6 @@ public:
 
 private:
   cl_identify_cafe_t m_Identification;
-  uintptr_t m_AddressCemuModule = 0;
-  uintptr_t m_AddressForegroundApp = 0;
-  uint32_t m_CycleCount = 0;
 };
 
 #endif
