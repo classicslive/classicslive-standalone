@@ -256,3 +256,35 @@ bool ClsHook::unpause(void)
   return kill(m_ProcessId, SIGCONT) == 0;
 #endif
 }
+
+bool ClsHook::getWindowTitle(char *buffer, unsigned buffer_len)
+{
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+  return GetWindowTextA(m_Window, buffer, buffer_len);
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  char cmd[256];
+  char line[1024];
+
+  snprintf(cmd, sizeof(cmd), "wmctrl -lp | awk -v pid=%u '$3 == pid'",
+           m_ProcessId);
+  FILE *cmd_file = popen(cmd, "r");
+
+  if (cmd_file == nullptr)
+    return false;
+
+  bool found = false;
+  while (fgets(line, sizeof(line), cmd_file))
+  {
+    if (sscanf(line, "%*s %*d %*d %*s %[^\n]", buffer) == 1)
+    {
+      found = true;
+      break;
+    }
+  }
+  pclose(cmd_file);
+
+  return found;
+#else
+  return false;
+#endif
+}

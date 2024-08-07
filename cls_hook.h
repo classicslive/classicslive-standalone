@@ -30,12 +30,13 @@ enum cls_hook_method_t
 
 struct cls_window_preset_t
 {
-  const char *window_class;
-  const char *window_title;
+#ifdef WIN32
+  LPWSTR window_class;
+  LPWSTR window_title;
+#elif defined(__linux__)
   const char *process_title;
-  const char *library_name;
-  uintptr_t memory_data;
-  uint64_t memory_size;
+#endif
+  const char *title;
 };
 
 typedef struct
@@ -49,12 +50,51 @@ typedef struct
 
 const cls_window_preset_t cls_window_presets[] =
 {
-  { "wxWindowNR", /*"Cemu 1.26.2f"*/ "", "cemu", "", 0x7FF6A6FE6438, 0x40000000 },
-  { "gdkWindowToplevel", "", "", "ryujinx", 0, 0 },
-  { "SDL_app", "", "", "touchHLE", 0, 0 },
-  { "GLFW30", /*"^Infuse .*"*/ "", "^Infuse$", "Infuse", 0, 0 },
+  {
+#ifdef WIN32
+    "^wxWindowNR$",
+    "^Cemu [1-9].*",
+#elif defined(__linux__)
+    "^cemu$",
+#endif
+    "Cemu"
+  },
 
-  { nullptr, nullptr, nullptr, nullptr, 0, 0 }
+  {
+#ifdef WIN32
+    "gdkWindowToplevel", "",
+#elif defined(__linux__)
+    "todo",
+#endif
+    "Ryujinx"
+  },
+
+  {
+#ifdef WIN32
+    "SDL_app", "",
+#elif defined (__linux__)
+    "todo",
+#endif
+    "touchHLE"
+  },
+
+  {
+#ifdef WIN32
+    "GLFW30", "^Infuse .*",
+#elif defined(__linux__)
+    "^Infuse$",
+#endif
+    "Infuse"
+  },
+
+  {
+#ifdef WIN32
+    nullptr, nullptr,
+#else
+    nullptr,
+#endif
+    nullptr
+  }
 };
 
 class ClsHook
@@ -124,6 +164,12 @@ public:
    * @return Whether the unpause succeeded
    */
   virtual bool unpause(void);
+
+  /**
+   * Reads the window title of the hooked program into a buffer.
+   * @return Whether the window title was read
+   */
+  virtual bool getWindowTitle(char *buffer, unsigned buffer_len);
 
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
 
