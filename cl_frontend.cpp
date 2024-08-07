@@ -189,25 +189,6 @@ int main(int argc, char *argv[])
 {
   QApplication a(argc, argv);
 
-  //ClsHook b(&cls_window_presets[1]);
-  //b.init();
-
-  //ClsHookRyujinx hook(&cls_window_presets[2]);
-  //hook.init();
-
-  //QFileDialog dialog;
-
-  //dialog.setFileMode(QFileDialog::ExistingFile);
-  //dialog.setNameFilter("Wii U executables (*.rpx *.elf)");
-  //dialog.setNameFilter("Windows executables (*.exe)");
-  //dialog.exec();
-  //auto filename = dialog.selectedFiles()[0].toStdString();
-
-  //session.ready = false;
-  //hooks.push_back(&hook);
-
-  //cl_init(nullptr, 0, filename.c_str());
-
   ClsMain clsmain;
   clsmain.show();
 

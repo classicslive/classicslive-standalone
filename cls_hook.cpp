@@ -86,7 +86,7 @@ bool ClsHook::init()
 
 bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   MEMORY_BASIC_INFORMATION memory;
   char *addr = nullptr;
 
@@ -100,7 +100,7 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
     }
     addr += memory.RegionSize;
   }
-#else
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   char line[256];
   char map_path[256];
   FILE *map_file = nullptr;
@@ -134,16 +134,18 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 
 bool ClsHook::run()
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return IsWindow(m_Window);
-#else
-  return false;
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  char proc[32];
+  snprintf(proc, sizeof(proc), "/proc/%u", m_ProcessId);
+  return (access(proc, F_OK) == 0);
 #endif
 }
 
 size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   size_t read = 0;
 
   ReadProcessMemory(m_Handle,
@@ -151,7 +153,7 @@ size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
                     dest, size, &read);
 
   return read;
-#elif __linux__
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
   ssize_t read = 0;
@@ -176,7 +178,7 @@ size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
 
 size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   size_t written = 0;
 
   WriteProcessMemory
@@ -189,7 +191,7 @@ size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
   );
 
   return written;
-#elif __linux__
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
   ssize_t written = 0;
@@ -241,7 +243,7 @@ bool ClsHook::deepCopy(cl_search_t *search)
 
 bool ClsHook::pause(void)
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return DebugActiveProcess(m_ProcessId);
 #else
   return kill(m_ProcessId, SIGSTOP) == 0;
@@ -250,7 +252,7 @@ bool ClsHook::pause(void)
 
 bool ClsHook::unpause(void)
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return DebugActiveProcessStop(m_ProcessId);
 #else
   return kill(m_ProcessId, SIGCONT) == 0;
