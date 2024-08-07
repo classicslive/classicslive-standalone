@@ -4,19 +4,22 @@
 #include <QMainWindow>
 #include <QTimer>
 
+#include "cls_process_select.h"
+
 class ClsMain : public QMainWindow
 {
   Q_OBJECT
 
 public:
-  ClsMain();
+  ClsMain(void);
 
 public slots:
-  void run();
+  void run(void);
   void selected(uint pid);
 
 private:
-  QTimer *timer;
+  QTimer *m_Timer = nullptr;
+  ClsProcessSelect *m_ProcessSelect = nullptr;
 };
 
 #endif

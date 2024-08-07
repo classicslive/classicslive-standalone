@@ -26,14 +26,16 @@ class ClsHookTouchhle : public ClsHook
 public:
   ClsHookTouchhle(unsigned pid = 0, const cls_window_preset_t *preset = nullptr);
 
-  bool init() override;
-  bool run() override;
+  bool init(void) override;
+  bool run(void) override;
   bool getIdentification(uint8_t **data, unsigned *size) override;
   const char *getLibrary(void) override { return "touchhle"; }
 
   /**
    * The emulator allocates the entire 32-bit address space, but currently it
-   * seems anything relevant is always in the top 1GB.
+   * seems anything relevant is always in the top 1GB. Should the emulator
+   * progress to supporting operating system versions for devices with more
+   * memory, this should be updated.
    */
   uint64_t memorySize(void) override { return 0x40000000; }
 

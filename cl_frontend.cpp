@@ -5,6 +5,7 @@
 #include <QTimer>
 
 #include "cls_hook.h"
+#include "cls_hook_cemu.h"
 #include "cls_hook_infuse.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
@@ -58,7 +59,7 @@ bool cl_fe_install_membanks(void)
     region->base_host = (uint8_t*)malloc(hooks[0]->memorySize());
     region->base_guest = 0;
     region->size = hooks[0]->memorySize();
-    snprintf(region->title, 256, "%s", cl_fe_library_name());
+    snprintf(region->title, sizeof(region->title), "%s", cl_fe_library_name());
     memory.region_count = 1;
 
     return true;
@@ -153,19 +154,19 @@ bool cl_fe_user_data(cl_user_t *user, unsigned index)
   return true;
 }
 
-ClsMain::ClsMain()
+ClsMain::ClsMain(void)
 {
-  timer = new QTimer(this);
-  timer->setInterval(16);
-  connect(timer, SIGNAL(timeout()), this, SLOT(run()));
-  timer->start();
+  m_Timer = new QTimer(this);
+  m_Timer->setInterval(16);
+  connect(m_Timer, SIGNAL(timeout()), this, SLOT(run()));
+  m_Timer->start();
 
-  ClsProcessSelect *select = new ClsProcessSelect(nullptr);
-  connect(select, SIGNAL(selected(uint)), this, SLOT(selected(uint)));
-  select->show();
+  m_ProcessSelect = new ClsProcessSelect();
+  connect(m_ProcessSelect, SIGNAL(selected(uint)), this, SLOT(selected(uint)));
+  m_ProcessSelect->show();
 }
 
-void ClsMain::run()
+void ClsMain::run(void)
 {
   if (hooks.size() == 1 && hooks[0]->run())
     cl_run();
@@ -173,15 +174,13 @@ void ClsMain::run()
 
 void ClsMain::selected(uint pid)
 {
-  ClsHookInfuse *hook = new ClsHookInfuse(pid);
+  ClsHookCemu *hook = new ClsHookCemu(pid);
   uint8_t *data;
   unsigned size;
 
   if (hook->init() && hook->getIdentification(&data, &size))
   {
-    session.ready = false;
     hooks.push_back(hook);
-
     cl_init(data, size, "");
   }
 }
