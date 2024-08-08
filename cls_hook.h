@@ -1,16 +1,6 @@
 #ifndef CLS_HOOK_H
 #define CLS_HOOK_H
 
-#ifdef WIN32
-#include <windows.h>
-#include <winternl.h>
-#include <psapi.h>
-#include <tchar.h>
-#include <tlhelp32.h>
-#else
-// linux includes?
-#endif
-
 extern "C"
 {
   #include <cl_common.h>
@@ -18,6 +8,14 @@ extern "C"
   #include <cl_memory.h>
   #include <cl_search.h>
 }
+
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#include <windows.h>
+#include <winternl.h>
+#include <psapi.h>
+#include <tchar.h>
+#include <tlhelp32.h>
+#endif
 
 enum cls_hook_method_t
 {
@@ -30,10 +28,10 @@ enum cls_hook_method_t
 
 struct cls_window_preset_t
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   LPWSTR window_class;
   LPWSTR window_title;
-#elif defined(__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   const char *process_title;
 #endif
   const char *title;
@@ -51,26 +49,26 @@ typedef struct
 const cls_window_preset_t cls_window_presets[] =
 {
   {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "^wxWindowNR$",
     "^Cemu [1-9].*",
-#elif defined(__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
     "^cemu$",
 #endif
     "Cemu"
   },
 
   {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "gdkWindowToplevel", "",
-#elif defined(__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
     "todo",
 #endif
     "Ryujinx"
   },
 
   {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "SDL_app", "",
 #elif defined (__linux__)
     "todo",
@@ -79,16 +77,16 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "GLFW30", "^Infuse .*",
-#elif defined(__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
     "^Infuse$",
 #endif
     "Infuse"
   },
 
   {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     nullptr, nullptr,
 #else
     nullptr,
@@ -180,11 +178,11 @@ protected:
   uint64_t m_MemorySize = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   HWND m_Window;
   HANDLE m_Handle;
   DWORD m_ProcessId;
-#elif __linux__
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   pid_t m_ProcessId;
 #endif
 };

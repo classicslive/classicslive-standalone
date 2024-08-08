@@ -6,10 +6,16 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 
+extern "C"
+{
+  #include <cl_config.h>
+};
+
 #define CLS_PROCESS_MAX 256
 
-#ifdef WIN32
-#elif defined(__linux__)
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#error "todo"
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
 #define CLS_COLUMN_TITLE 0
 #define CLS_COLUMN_PID 1
 #define CLS_COLUMN_CPU 2
@@ -18,8 +24,9 @@
 
 typedef struct
 {
-#ifdef WIN32
-#elif defined(__linux__)
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#error "todo"
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   char title[256];
   pid_t pid;
   float cpu;

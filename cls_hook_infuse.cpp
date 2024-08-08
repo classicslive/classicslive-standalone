@@ -18,9 +18,9 @@ bool ClsHookInfuse::init(void)
   if (!ClsHook::init())
     return false;
   else
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     return ClsHook::initViaMemoryRegions({0xA001000, 0x40});
-#elif defined(__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
     return ClsHook::initViaMemoryRegions({0xA001000, 0x10});
 #else
     return false;

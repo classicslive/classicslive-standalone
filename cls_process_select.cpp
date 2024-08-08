@@ -48,9 +48,9 @@ void ClsProcessSelect::onHookButtonClicked(void)
 
 int ClsProcessSelect::refresh(void)
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
 #error "todo"
-#elif defined(__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   /**
    * Enumerate all processes Compactly, with no Header, and only for current
    * User. Sort by CPU usage.

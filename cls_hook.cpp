@@ -20,7 +20,7 @@ ClsHook::~ClsHook()
 
 bool ClsHook::init()
 {
-#ifdef WIN32
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   const int wsize = 256;
   wchar_t wide_class[wsize];
   wchar_t wide_title[wsize];
