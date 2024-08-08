@@ -52,7 +52,7 @@ static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
 
   /* Copy it into the identification struct and set the remainder to 00 */
   memset(ident->version, 0, sizeof(ident->version));
-  snprintf(ident->version, sizeof(ident->version),
+  snprintf(ident->version, sizeof(ident->version), "%s",
            version_string.toUtf8().constData());
 
   return true;
@@ -60,21 +60,19 @@ static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
 
 bool ClsHookRyujinx::getIdentification(uint8_t **data, unsigned int *size)
 {
-#if WIN32
   char window_title[256];
 
-  GetWindowTextA(m_Window, window_title, sizeof(window_title));
-  if (!get_title_id(&m_Identification, QString(window_title)))
+  if (!getWindowTitle(window_title, sizeof(window_title)))
+    return false;
+  else if (!get_title_id(&m_Identification, QString(window_title)))
     return false;
   else
   {
     *data = reinterpret_cast<uint8_t*>(&m_Identification);
     *size = sizeof(m_Identification);
+
     return true;
   }
-#else
-  return false;
-#endif
 }
 
 /**
