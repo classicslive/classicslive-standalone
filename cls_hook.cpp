@@ -196,10 +196,10 @@ size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
   struct iovec remote_iov;
   ssize_t written = 0;
 
-  local_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
+  local_iov.iov_base = const_cast<void*>(src);
   local_iov.iov_len = size;
 
-  remote_iov.iov_base = const_cast<void*>(src);
+  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
   remote_iov.iov_len = size;
 
   written = process_vm_writev(m_ProcessId, &local_iov, 1,
