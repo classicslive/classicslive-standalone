@@ -1,11 +1,17 @@
 #include <wchar.h>
 
-#ifdef __linux__
+#if CL_HOST_PLATFORM == CL_PLATFORM_LINUX
 #include <signal.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #endif
 
+extern "C"
+{
+  #include <cl_common.h>
+  #include <cl_main.h>
+  #include <cl_memory.h>
+}
 #include "cls_hook.h"
 
 ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset)
@@ -132,8 +138,36 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
   return false;
 }
 
+bool ClsHook::installMemoryRegions(cl_memory_region_t **regions_loc,
+                                   unsigned *regions_count)
+{
+  if (!m_MemoryRegionCount)
+  {
+    cl_memory_region_t *region;
+
+    region = &m_MemoryRegions[0];
+    region->base_host = (uint8_t*)malloc(memorySize());
+    region->base_guest = 0;
+    region->size = memorySize();
+    snprintf(region->title, sizeof(region->title), "%s", getLibrary());
+    m_MemoryRegionCount = 1;
+    *regions_loc = m_MemoryRegions;
+    *regions_count = m_MemoryRegionCount;
+
+    return true;
+  }
+  else
+  {
+    *regions_loc = m_MemoryRegions;
+    *regions_count = m_MemoryRegionCount;
+
+    return true;
+  }
+}
+
 bool ClsHook::run()
 {
+
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return IsWindow(m_Window);
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
@@ -143,6 +177,9 @@ bool ClsHook::run()
 #endif
 }
 
+/**
+ * @todo dont assume this will succeed, fix windows
+ */
 size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
@@ -161,11 +198,20 @@ size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
   local_iov.iov_base = dest;
   local_iov.iov_len = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
+  for (unsigned i = 0; i < m_MemoryRegionCount; i++)
+  {
+    if (address >= m_MemoryRegions[i].base_guest &&
+        address < m_MemoryRegions[i].base_guest + m_MemoryRegions[i].size)
+    {
+      remote_iov.iov_base = reinterpret_cast<void*>(
+        static_cast<uint8_t*>(m_MemoryRegions[i].base_host) + address -
+        m_MemoryRegions[i].base_guest);
+      break;
+    }
+  }
   remote_iov.iov_len = size;
 
-  read = process_vm_readv(m_ProcessId, &local_iov, 1,
-                          &remote_iov, 1, 0);
+  read = process_vm_readv(m_ProcessId, &local_iov, 1, &remote_iov, 1, 0);
 
   if (read < 0)
     return 0;

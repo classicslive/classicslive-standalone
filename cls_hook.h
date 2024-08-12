@@ -17,6 +17,8 @@ extern "C"
 #include <tlhelp32.h>
 #endif
 
+#include <vector>
+
 enum cls_hook_method_t
 {
   HOOK_METHOD_BASIC = 0,
@@ -146,6 +148,15 @@ public:
   }
 
   /**
+   * Attempts to install the memory regions of the external program or emulated
+   * memory.
+   * @param regions The location to install the regions to
+   * @return The number of regions installed, or 0 on failure
+   */
+  virtual bool installMemoryRegions(cl_memory_region_t **regions_loc,
+                                    unsigned *regions_count);
+
+  /**
    * @return The library name of the guest program
    */
   virtual const char *getLibrary(void) { return "unknown"; }
@@ -175,15 +186,17 @@ protected:
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
   uintptr_t m_MemoryData = 0;
+  cl_memory_region_t m_MemoryRegions[16];
+  unsigned m_MemoryRegionCount = 0;
   uint64_t m_MemorySize = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  HWND m_Window;
-  HANDLE m_Handle;
-  DWORD m_ProcessId;
+  HWND m_Window = nullptr;
+  HANDLE m_Handle = nullptr;
+  DWORD m_ProcessId = 0;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
-  pid_t m_ProcessId;
+  pid_t m_ProcessId = 0;
 #endif
 };
 

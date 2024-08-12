@@ -18,10 +18,6 @@ INCLUDEPATH += \
   $$PWD/libretro-common/include
 
 SOURCES += \
-  cls_hook_infuse.cpp \
-  cls_hook_ryujinx.cpp \
-  cls_hook_touchhle.cpp \
-  cls_process_select.cpp \
   libretro-common/compat/compat_strl.c \
   libretro-common/compat/fopen_utf8.c \
   libretro-common/encodings/encoding_base64.c \
@@ -70,6 +66,10 @@ SOURCES += \
   classicslive-integration/cl_search.c \
   cls_hook.cpp \
   cls_hook_cemu.cpp \
+  cls_hook_infuse.cpp \
+  cls_hook_ryujinx.cpp \
+  cls_hook_touchhle.cpp \
+  cls_process_select.cpp \
   cls_network_manager.cpp \
   cls_thread.cpp
 

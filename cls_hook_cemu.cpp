@@ -79,6 +79,19 @@ bool ClsHookCemu::init()
   return initViaMemoryRegions({0x4E000000, 0x0E000000});
 }
 
+bool ClsHookCemu::installMemoryRegions(cl_memory_region_t **regions_loc,
+                                       unsigned *regions_count)
+{
+  if (!ClsHook::installMemoryRegions(regions_loc, regions_count))
+    return false;
+  else
+  {
+    /* Only region we care about is top of foreground process bucket */
+    (*regions_loc)[0].base_guest = 0x10000000;
+    return true;
+  }
+}
+
 bool ClsHookCemu::run()
 {
   return true;

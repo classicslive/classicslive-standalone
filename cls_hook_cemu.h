@@ -21,7 +21,8 @@ public:
 
   bool getIdentification(uint8_t **data, unsigned int *size) override;
   const char *getLibrary(void) override { return "cemu"; }
-
+  bool installMemoryRegions(cl_memory_region_t **regions_loc,
+                            unsigned *regions_count) override;
   uint64_t memorySize(void) override { return 0x40000000; }
 
 private:
