@@ -29,8 +29,8 @@ enum cls_hook_method_t
 struct cls_window_preset_t
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  LPWSTR window_class;
-  LPWSTR window_title;
+  const char *window_class;
+  const char *window_title;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   const char *process_title;
 #endif
@@ -179,9 +179,9 @@ protected:
   const cls_window_preset_t *m_Preset = nullptr;
 
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  HWND m_Window;
-  HANDLE m_Handle;
-  DWORD m_ProcessId;
+  HWND m_Window = nullptr;
+  HANDLE m_Handle = nullptr;
+  DWORD m_ProcessId = 0;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   pid_t m_ProcessId;
 #endif

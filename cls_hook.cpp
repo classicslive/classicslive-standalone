@@ -21,64 +21,41 @@ ClsHook::~ClsHook()
 bool ClsHook::init()
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  const int wsize = 256;
-  wchar_t wide_class[wsize];
-  wchar_t wide_title[wsize];
-
-  /* Cast window title and class to wide char string */
-  mbstowcs(wide_class, m_Preset->window_class, wsize);
-  mbstowcs(wide_title, m_Preset->window_title, wsize);
-
-  /* Find window, discard class and title if they are blank */
-  m_Window = FindWindow(wcslen(wide_class) == 0 ? nullptr : wide_class,
-                        wcslen(wide_title) == 0 ? nullptr : wide_title);
-  if (!m_Window)
-    return false;
-
-  /* Get process ID */
-  GetWindowThreadProcessId(m_Window, &m_ProcessId);
-  if (!m_ProcessId)
-    return false;
-
   /* Get process handle with read and write permissions */
-  m_Handle = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION, FALSE, m_ProcessId);
+  m_Handle = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE |
+                         PROCESS_VM_OPERATION, FALSE, m_ProcessId);
   if (!m_Handle)
     return false;
 
-  /*HANDLE th = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, m_ProcessId);
-  if (th == INVALID_HANDLE_VALUE)
-    return false;
-  else
+  struct WindowInfo
   {
-    MODULEENTRY32 module;
+    HWND hWnd;
+    DWORD processId;
+    int padding;
+  };
 
-    module.dwSize = sizeof(module);
-    if (Module32First(th, &module))
+  WindowInfo windowInfo = { nullptr, m_ProcessId, 0 };
+
+  EnumWindows([](HWND hWnd, LPARAM lParam) -> BOOL
+  {
+    WindowInfo* pInfo = reinterpret_cast<WindowInfo*>(lParam);
+    DWORD wndProcessId;
+    GetWindowThreadProcessId(hWnd, &wndProcessId);
+    char title[256];
+
+    // Check if this window belongs to the process we're looking for
+    if (wndProcessId == pInfo->processId && GetWindowTextA(hWnd, title, 256))
     {
-      m_MemoryData = reinterpret_cast<uintptr_t>(module.modBaseAddr);
-      m_MemorySize = module.modBaseSize;
-      do
-      {
-        wprintf(L"%s\n", module.szModule);
-      } while (Module32Next(th, &module));
+      pInfo->hWnd = hWnd;
+      return FALSE; // Stop enumeration, we found the window
     }
-  }
-  CloseHandle(th);*/
 
-  /*MEMORY_BASIC_INFORMATION mbi;
-  auto step = reinterpret_cast<void*>(m_MemoryData);
-  unsigned long long total = 0;
-  while (VirtualQueryEx(m_Handle, step, &mbi, sizeof(mbi)) && total < 0x40000000)
-  {
-    cl_log("%p %u\n", mbi.BaseAddress, mbi.RegionSize);
-    step = reinterpret_cast<uint8_t*>(step) + mbi.RegionSize;
-    if (mbi.RegionSize > 0x40000000)
-      break;
-    total += mbi.RegionSize;
-  }*/
+    return TRUE; // Continue enumeration
+  }, reinterpret_cast<LPARAM>(&windowInfo));
 
-  m_MemoryData = 0;
-  m_MemorySize = 0x02f752D4;
+  // If we found a window handle, store it in m_Window
+  if (windowInfo.hWnd)
+    m_Window = windowInfo.hWnd;
 #endif
 
   return true;

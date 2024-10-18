@@ -93,18 +93,12 @@ bool ClsHookRyujinx::run(void)
 
 size_t ClsHookRyujinx::read(void *dest, cl_addr_t address, size_t size)
 {
-  if (!m_AddressForegroundApp)
-    return false;
-  else
-    return ClsHook::read(dest, address + m_AddressForegroundApp /* - 0x10000*/, size);
+  return ClsHook::read(dest, address /* - 0x10000*/, size);
 }
 
 size_t ClsHookRyujinx::write(const void *src, cl_addr_t address, size_t size)
 {
-  if (!m_AddressForegroundApp)
-    return false;
-  else
-    return ClsHook::write(src, address + m_AddressForegroundApp /* - 0x10000*/, size);
+  return ClsHook::write(src, address /* - 0x10000*/, size);
 }
 
 bool ClsHookRyujinx::deepCopy(cl_search_t *search)

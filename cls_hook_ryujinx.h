@@ -42,8 +42,6 @@ public:
   bool getIdentification(uint8_t **data, unsigned *size) override;
   const char *getLibrary(void) override { return "ryujinx"; }
 
-  uintptr_t memoryData(void) override { return m_AddressForegroundApp; }
-
   /**
    * @todo This may be more in the future.
    * See https://switchbrew.org/wiki/SMC#MemoryMode
@@ -51,7 +49,6 @@ public:
   uint64_t memorySize(void) override { return 0xC0000000; }
 
 private:
-  uintptr_t m_AddressForegroundApp = 0;
   uint32_t m_CycleCount = 0;
   cl_identify_nx_t m_Identification;
 };
