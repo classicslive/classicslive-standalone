@@ -14,7 +14,10 @@ extern "C"
 #define CLS_PROCESS_MAX 256
 
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-#error "todo"
+#define CLS_COLUMN_TITLE 0
+#define CLS_COLUMN_PID 1
+#define CLS_COLUMN_CPU 2
+#define CLS_COLUMN_MEMORY 3
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
 #define CLS_COLUMN_TITLE 0
 #define CLS_COLUMN_PID 1
@@ -25,7 +28,10 @@ extern "C"
 typedef struct
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-#error "todo"
+  char title[256];
+  unsigned long pid;
+  float cpu;
+  unsigned long long memory;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   char title[256];
   pid_t pid;

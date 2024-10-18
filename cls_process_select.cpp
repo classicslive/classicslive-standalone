@@ -46,10 +46,62 @@ void ClsProcessSelect::onHookButtonClicked(void)
   }
 }
 
+typedef struct
+{
+  cls_process_t *processes;
+  int *process_count;
+} cls_windows_cb_t;
+
+BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
+{
+  auto processes = reinterpret_cast<cls_windows_cb_t*>(lParam);
+  auto process = &processes->processes[*processes->process_count];
+
+  /* Filter out invisible windows */
+  if (IsWindowVisible(hWnd))
+  {
+    HANDLE hProcess = nullptr;
+
+    GetWindowThreadProcessId(hWnd, &process->pid);
+    hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, process->pid);
+    if (hProcess)
+    {
+      /* Get window title */
+      GetWindowTextA(hWnd, process->title, sizeof(process->title));
+
+      /* Get memory usage */
+      PROCESS_MEMORY_COUNTERS pmc;
+      if (GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc)))
+        process->memory = pmc.WorkingSetSize;
+
+      /* Get CPU usage */
+      FILETIME creationTime, exitTime, kernelTime, userTime;
+      if (GetProcessTimes(hProcess, &creationTime, &exitTime, &kernelTime, &userTime))
+      {
+        ULARGE_INTEGER ktime, utime;
+        ktime.LowPart = kernelTime.dwLowDateTime;
+        ktime.HighPart = kernelTime.dwHighDateTime;
+        utime.LowPart = userTime.dwLowDateTime;
+        utime.HighPart = userTime.dwHighDateTime;
+
+        process->cpu = static_cast<float>((ktime.QuadPart + utime.QuadPart) / 20000.0);
+      }
+      *processes->process_count += 1;
+    }
+    CloseHandle(hProcess);
+  }
+
+  return TRUE;
+}
+
 int ClsProcessSelect::refresh(void)
 {
+  int i = 0;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-#error "todo"
+  cls_windows_cb_t processes = { m_Processes, &m_ProcessCount };
+
+  m_ProcessCount = 0;
+  EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&processes));
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   /**
    * Enumerate all processes Compactly, with no Header, and only for current
@@ -58,7 +110,6 @@ int ClsProcessSelect::refresh(void)
   const char *cmd = "ps -e chux --sort=-%cpu";
   FILE *cmd_file = nullptr;
   char line[256];
-  int i = 0;
 
   /* Retain highlighted item */
   if (m_Table->selectedItems().count())
@@ -99,6 +150,7 @@ int ClsProcessSelect::refresh(void)
     }
   }
   m_ProcessCount = i;
+#endif
 
   /* Refresh the UI table */
   m_Table->setRowCount(m_ProcessCount);
@@ -114,12 +166,11 @@ int ClsProcessSelect::refresh(void)
       new QTableWidgetItem(QString::number(m_Processes[i].memory)));
 
     /* Highlight known processes */
-    for (unsigned j = 0; j < sizeof(cls_window_presets) / sizeof(cls_window_preset_t) - 1; j++)
-      if (std::regex_match(std::string(m_Processes[i].title),
-                           std::regex(cls_window_presets[j].process_title)))
-        m_Table->itemAt(i, CLS_COLUMN_TITLE)->setBackground(QBrush(QColor(200, 200, 255)));
+    //for (unsigned j = 0; j < sizeof(cls_window_presets) / sizeof(cls_window_preset_t) - 1; j++)
+    //  if (std::regex_match(std::string(m_Processes[i].title),
+    //                       std::regex(cls_window_presets[j].process_title)))
+    //    m_Table->itemAt(i, CLS_COLUMN_TITLE)->setBackground(QBrush(QColor(200, 200, 255)));
   }
 
   return i;
-#endif
 }

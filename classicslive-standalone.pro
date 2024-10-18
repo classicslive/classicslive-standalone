@@ -18,6 +18,7 @@ INCLUDEPATH += \
   $$PWD/libretro-common/include
 
 SOURCES += \
+  cls_hook_dolphin.cpp \
   cls_hook_infuse.cpp \
   cls_hook_ryujinx.cpp \
   cls_hook_touchhle.cpp \
@@ -102,6 +103,7 @@ HEADERS += \
   classicslive-integration/editor/cle_script_editor_block.h \
   cls_hook.h \
   cls_hook_cemu.h \
+  cls_hook_dolphin.h \
   cls_hook_infuse.h \
   cls_hook_ryujinx.h \
   cls_hook_touchhle.h \

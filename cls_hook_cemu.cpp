@@ -1,3 +1,4 @@
+#include <QRegExp>
 #include <QString>
 #include <QtEndian>
 
@@ -48,7 +49,7 @@ static bool get_title_id(cl_identify_cafe_t *ident, const QString &str)
     return false;
 
   /* Copy it into the identification struct and set the remainder to 00 */
-  uint64_t title_id = title_id_string.toULong(&ok, 16);
+  uint64_t title_id = title_id_string.toULongLong(&ok, 16);
   if (!ok)
     return false;
   cl_read(&ident->title_id, (uint8_t*)&title_id, 0, sizeof(title_id),
@@ -76,7 +77,7 @@ bool ClsHookCemu::getIdentification(uint8_t **data, unsigned int *size)
 
 bool ClsHookCemu::init()
 {
-  return initViaMemoryRegions({0x4E000000, 0x0E000000});
+  return ClsHook::init() && initViaMemoryRegions({0x4E000000, 0x0E000000});
 }
 
 bool ClsHookCemu::run()
