@@ -36,9 +36,6 @@ public:
 
   bool init() override;
   bool run() override;
-  size_t read(void *dest, cl_addr_t address, size_t size) override;
-  size_t write(const void *src, cl_addr_t address, size_t size) override;
-  bool deepCopy(cl_search_t *search) override;
   bool getIdentification(uint8_t **data, unsigned *size) override;
   const char *getLibrary(void) override { return "ryujinx"; }
 

@@ -75,9 +75,6 @@ bool ClsHookRyujinx::getIdentification(uint8_t **data, unsigned int *size)
   }
 }
 
-/**
- * @todo Re-confirm this
- */
 bool ClsHookRyujinx::init(void)
 {
   if (!ClsHook::init())
@@ -89,25 +86,4 @@ bool ClsHookRyujinx::init(void)
 bool ClsHookRyujinx::run(void)
 {
   return true;
-}
-
-size_t ClsHookRyujinx::read(void *dest, cl_addr_t address, size_t size)
-{
-  return ClsHook::read(dest, address /* - 0x10000*/, size);
-}
-
-size_t ClsHookRyujinx::write(const void *src, cl_addr_t address, size_t size)
-{
-  return ClsHook::write(src, address /* - 0x10000*/, size);
-}
-
-bool ClsHookRyujinx::deepCopy(cl_search_t *search)
-{
-  if (!search || search->searchbank_count != 1 || !search->searchbanks->region->base_host)
-    return false;
-
-  return read(
-    (uint8_t*)search->searchbanks[0].region->base_host + search->searchbanks[0].first_valid,
-    search->searchbanks[0].first_valid,
-    search->searchbanks[0].last_valid - search->searchbanks[0].first_valid + search->params.size);
 }
