@@ -22,6 +22,7 @@ SOURCES += \
   cls_hook_infuse.cpp \
   cls_hook_ryujinx.cpp \
   cls_hook_touchhle.cpp \
+  cls_hook_yuzu.cpp \
   cls_process_select.cpp \
   libretro-common/compat/compat_strl.c \
   libretro-common/compat/fopen_utf8.c \
@@ -107,6 +108,8 @@ HEADERS += \
   cls_hook_infuse.h \
   cls_hook_ryujinx.h \
   cls_hook_touchhle.h \
+  cls_hook_yuzu.h \
+  cls_identification_methods.h \
   cls_main.h \
   cls_network_manager.h \
   cls_process_select.h \
