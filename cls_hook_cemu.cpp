@@ -4,9 +4,6 @@
 
 #include "cls_hook_cemu.h"
 
-ClsHookCemu::ClsHookCemu(unsigned pid, const cls_window_preset_t *preset) :
-  ClsHook(pid, preset) {}
-
 static bool get_title_id(cl_identify_cafe_t *ident, const QString &str)
 {
   int position = -1;

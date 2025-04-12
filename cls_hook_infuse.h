@@ -11,11 +11,12 @@ typedef struct
 class ClsHookInfuse : public ClsHook
 {
 public:
-  ClsHookInfuse(unsigned pid = 0, const cls_window_preset_t *preset = nullptr);
+  bool init(void) override;
 
-  bool init() override;
-  bool run() override;
+  bool run(void) override;
+
   bool getIdentification(uint8_t **data, unsigned *size) override;
+
   const char *getLibrary(void) override { return "infuse"; }
 
   uint64_t memorySize(void) override { return 0x0A000000; }

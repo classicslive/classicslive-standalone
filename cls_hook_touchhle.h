@@ -24,11 +24,12 @@ typedef struct
 class ClsHookTouchhle : public ClsHook
 {
 public:
-  ClsHookTouchhle(unsigned pid = 0, const cls_window_preset_t *preset = nullptr);
-
   bool init(void) override;
+
   bool run(void) override;
+
   bool getIdentification(uint8_t **data, unsigned *size) override;
+
   const char *getLibrary(void) override { return "touchhle"; }
 
   /**

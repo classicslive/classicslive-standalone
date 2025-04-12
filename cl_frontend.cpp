@@ -6,7 +6,8 @@
 
 #include "cls_hook.h"
 #include "cls_hook_cemu.h"
-#include "cls_hook_infuse.h"
+#include "cls_hook_ryujinx.h"
+#include "cls_hook_yuzu.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
 #include "cls_process_select.h"
@@ -162,7 +163,8 @@ ClsMain::ClsMain(void)
   m_Timer->start();
 
   m_ProcessSelect = new ClsProcessSelect();
-  connect(m_ProcessSelect, SIGNAL(selected(uint)), this, SLOT(selected(uint)));
+  connect(m_ProcessSelect, SIGNAL(selected(uint, void*)),
+          this, SLOT(selected(uint, void*)));
   m_ProcessSelect->show();
 }
 
@@ -172,9 +174,9 @@ void ClsMain::run(void)
     cl_run();
 }
 
-void ClsMain::selected(uint pid)
+void ClsMain::selected(uint pid, void *window)
 {
-  ClsHookCemu *hook = new ClsHookCemu(pid);
+  ClsHookRyujinx *hook = new ClsHookRyujinx(pid, nullptr, window);
   uint8_t *data;
   unsigned size;
 

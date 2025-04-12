@@ -15,7 +15,7 @@ public:
 
 public slots:
   void run(void);
-  void selected(uint pid);
+  void selected(uint pid, void *window);
 
 private:
   QTimer *m_Timer = nullptr;

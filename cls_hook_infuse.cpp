@@ -1,7 +1,5 @@
 #include "cls_hook_infuse.h"
 
-ClsHookInfuse::ClsHookInfuse(unsigned pid, const cls_window_preset_t *preset) : ClsHook(pid, preset) {}
-
 static cl_identify_zeebo_t test_bundle = { 0x233b0 };
 
 bool ClsHookInfuse::getIdentification(uint8_t **data, unsigned int *size)

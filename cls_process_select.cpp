@@ -10,7 +10,7 @@ ClsProcessSelect::ClsProcessSelect(QWidget *parent) : QWidget(parent)
 {
   m_Table = new QTableWidget(this);
 
-  m_Table->setColumnCount(4);
+  m_Table->setColumnCount(CLS_COLUMN_SIZE);
   m_Table->setHorizontalHeaderLabels(QStringList() <<
     "Title" << "PID" << "CPU" << "RAM");
   m_Table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -37,15 +37,29 @@ void ClsProcessSelect::onHookButtonClicked(void)
 
   if (row >= 0)
   {
-    QTableWidgetItem *item = m_Table->item(row, CLS_COLUMN_PID);
+    QTableWidgetItem *item_pid = m_Table->item(row, CLS_COLUMN_PID);
     bool ok = false;
-    unsigned pid = item->text().toUInt(&ok, 10);
+    unsigned pid = item_pid->text().toUInt(&ok, 10);
+
+    /* Retrieve the window handle (Windows only) */
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    QTableWidgetItem *item_win = m_Table->item(row, CLS_COLUMN_WINDOW);
+    HWND window = nullptr;
+    if (item_win)
+    {
+      QString hwndStr = item_win->text();
+      window = reinterpret_cast<HWND>(hwndStr.toULongLong(&ok, 16));
+    }
+#else
+    void *window = nullptr;
+#endif
 
     if (ok && pid > 0)
-      emit selected(pid);
+      emit selected(pid, window);
   }
 }
 
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
 typedef struct
 {
   cls_process_t *processes;
@@ -68,6 +82,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
     {
       /* Get window title */
       GetWindowTextA(hWnd, process->title, sizeof(process->title));
+      process->window = hWnd;
 
       /* Get memory usage */
       PROCESS_MEMORY_COUNTERS pmc;
@@ -84,7 +99,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
         utime.LowPart = userTime.dwLowDateTime;
         utime.HighPart = userTime.dwHighDateTime;
 
-        process->cpu = static_cast<float>((ktime.QuadPart + utime.QuadPart) / 20000.0);
+        process->cpu = static_cast<double>(ktime.QuadPart + utime.QuadPart) / 20000.0;
       }
       *processes->process_count += 1;
     }
@@ -93,6 +108,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
 
   return TRUE;
 }
+#endif
 
 int ClsProcessSelect::refresh(void)
 {
@@ -164,6 +180,10 @@ int ClsProcessSelect::refresh(void)
       new QTableWidgetItem(QString::number(m_Processes[i].cpu, 'f', 1)));
     m_Table->setItem(i, CLS_COLUMN_MEMORY,
       new QTableWidgetItem(QString::number(m_Processes[i].memory)));
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    m_Table->setItem(i, CLS_COLUMN_WINDOW,
+      new QTableWidgetItem(QString::asprintf("%p", reinterpret_cast<void*>(m_Processes[i].window))));
+#endif
 
     /* Highlight known processes */
     //for (unsigned j = 0; j < sizeof(cls_window_presets) / sizeof(cls_window_preset_t) - 1; j++)

@@ -8,17 +8,20 @@
 
 #include "cls_hook.h"
 
-ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset)
+ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
 {
   m_ProcessId = pid;
   m_Preset = preset;
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+  m_Window = reinterpret_cast<HWND>(window);
+#endif
 }
 
 ClsHook::~ClsHook()
 {
 }
 
-bool ClsHook::init()
+bool ClsHook::init(void)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   /* Get process handle with read and write permissions */
@@ -26,43 +29,48 @@ bool ClsHook::init()
                          PROCESS_VM_OPERATION, FALSE, m_ProcessId);
   if (!m_Handle)
     return false;
-
-  struct WindowInfo
+  else if (!m_Window)
   {
-    HWND hWnd;
-    DWORD processId;
-    int padding;
-  };
-
-  WindowInfo windowInfo = { nullptr, m_ProcessId, 0 };
-
-  EnumWindows([](HWND hWnd, LPARAM lParam) -> BOOL
-  {
-    WindowInfo* pInfo = reinterpret_cast<WindowInfo*>(lParam);
-    DWORD wndProcessId;
-    GetWindowThreadProcessId(hWnd, &wndProcessId);
-    char title[256];
-
-    // Check if this window belongs to the process we're looking for
-    if (wndProcessId == pInfo->processId && GetWindowTextA(hWnd, title, 256))
+    struct WindowInfo
     {
-      pInfo->hWnd = hWnd;
-      return FALSE; // Stop enumeration, we found the window
-    }
+      HWND hWnd;
+      DWORD processId;
+      int padding;
+    };
 
-    return TRUE; // Continue enumeration
-  }, reinterpret_cast<LPARAM>(&windowInfo));
+    WindowInfo windowInfo = { nullptr, m_ProcessId, 0 };
 
-  // If we found a window handle, store it in m_Window
-  if (windowInfo.hWnd)
-    m_Window = windowInfo.hWnd;
+    EnumWindows([](HWND hWnd, LPARAM lParam) -> BOOL
+    {
+      WindowInfo* pInfo = reinterpret_cast<WindowInfo*>(lParam);
+      DWORD wndProcessId;
+      GetWindowThreadProcessId(hWnd, &wndProcessId);
+      char title[256];
+
+      // Check if this window belongs to the process we're looking for
+      if (wndProcessId == pInfo->processId && GetWindowTextA(hWnd, title, 256))
+      {
+        pInfo->hWnd = hWnd;
+        return FALSE; // Stop enumeration, we found the window
+      }
+
+      return TRUE; // Continue enumeration
+    }, reinterpret_cast<LPARAM>(&windowInfo));
+
+    // If we found a window handle, store it in m_Window
+    if (windowInfo.hWnd)
+      m_Window = windowInfo.hWnd;
+  }
 #endif
 
   return true;
 }
 
-bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
+cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr)
 {
+  cl_memory_region_t region;
+
+  memset(&region, 0, sizeof(region));
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   MEMORY_BASIC_INFORMATION memory;
   char *addr = nullptr;
@@ -72,8 +80,11 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
   {
     if (memory.RegionSize == fvmr.size && memory.Protect == PAGE_READWRITE)
     {
-      m_MemoryData = reinterpret_cast<uintptr_t>(memory.BaseAddress) + fvmr.offset;
-      return true;
+      region.base_alloc = memory.AllocationBase;
+      region.base_host = reinterpret_cast<unsigned char*>(memory.BaseAddress) + fvmr.offset;
+      region.size = memory.RegionSize;
+
+      return region;
     }
     addr += memory.RegionSize;
   }
@@ -97,7 +108,8 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
       size = addr_end - addr_start;
       if (size == fvmr.size)
       {
-        m_MemoryData = reinterpret_cast<uintptr_t>(addr_start) + fvmr.offset;
+        region.base_host = reinterpret_cast<uintptr_t>(addr_start) + fvmr.offset;
+        region.size = size;
         fclose(map_file);
 
         return true;
@@ -106,10 +118,23 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
   }
   fclose(map_file);
 #endif
-  return false;
+  return region;
 }
 
-bool ClsHook::run()
+bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
+{
+  cl_memory_region_t region = findMemoryRegion(fvmr);
+
+  if (region.size && region.base_host)
+  {
+    m_MemoryData = reinterpret_cast<uintptr_t>(region.base_host);
+    return true;
+  }
+  else
+    return false;
+}
+
+bool ClsHook::run(void)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return IsWindow(m_Window);
@@ -239,7 +264,7 @@ bool ClsHook::unpause(void)
 bool ClsHook::getWindowTitle(char *buffer, unsigned buffer_len)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  return GetWindowTextA(m_Window, buffer, buffer_len);
+  return GetWindowTextA(m_Window, buffer, static_cast<int>(buffer_len));
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   char cmd[256];
   char line[1024];

@@ -98,7 +98,8 @@ const cls_window_preset_t cls_window_presets[] =
 class ClsHook
 {
 public:
-  ClsHook(unsigned pid = 0, const cls_window_preset_t *preset = nullptr);
+  ClsHook(unsigned pid = 0, const cls_window_preset_t *preset = nullptr,
+    void *window = nullptr);
 
   virtual ~ClsHook();
 
@@ -168,6 +169,8 @@ public:
    * @return Whether the window title was read
    */
   virtual bool getWindowTitle(char *buffer, unsigned buffer_len);
+
+  cl_memory_region_t findMemoryRegion(const cls_find_memory_region_t fvmr);
 
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
 

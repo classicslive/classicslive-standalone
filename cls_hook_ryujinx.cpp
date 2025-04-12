@@ -3,7 +3,8 @@
 
 #include "cls_hook_ryujinx.h"
 
-ClsHookRyujinx::ClsHookRyujinx(unsigned pid, const cls_window_preset_t *preset) : ClsHook(pid, preset) {}
+ClsHookRyujinx::ClsHookRyujinx(unsigned pid, const cls_window_preset_t *preset,
+  void *window) : ClsHook(pid, preset, window) {}
 
 static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
 {

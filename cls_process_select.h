@@ -18,11 +18,14 @@ extern "C"
 #define CLS_COLUMN_PID 1
 #define CLS_COLUMN_CPU 2
 #define CLS_COLUMN_MEMORY 3
+#define CLS_COLUMN_WINDOW 4
+#define CLS_COLUMN_SIZE 5
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
 #define CLS_COLUMN_TITLE 0
 #define CLS_COLUMN_PID 1
 #define CLS_COLUMN_CPU 2
 #define CLS_COLUMN_MEMORY 3
+#define CLS_COLUMN_SIZE 4
 #endif
 
 typedef struct
@@ -30,8 +33,9 @@ typedef struct
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   char title[256];
   unsigned long pid;
-  float cpu;
+  double cpu;
   unsigned long long memory;
+  HWND window;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   char title[256];
   pid_t pid;
@@ -52,7 +56,7 @@ public slots:
   void onHookButtonClicked(void);
 
 signals:
-  void selected(unsigned pid);
+  void selected(unsigned pid, void *window);
 
 private:
   cls_process_t m_Processes[CLS_PROCESS_MAX];
