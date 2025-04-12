@@ -1,3 +1,4 @@
+#include <cstring>
 #include <wchar.h>
 
 #ifdef __linux__
@@ -95,11 +96,11 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
   uintptr_t addr_start, addr_end, size;
 
   if (!m_ProcessId)
-    return false;
+    return region;
   snprintf(map_path, sizeof(map_path), "/proc/%d/maps", m_ProcessId);
   map_file = fopen(map_path, "r");
   if (!map_file)
-    return false;
+    return region;
 
   while (fgets(line, sizeof(line), map_file))
   {
@@ -108,11 +109,11 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
       size = addr_end - addr_start;
       if (size == fvmr.size)
       {
-        region.base_host = reinterpret_cast<uintptr_t>(addr_start) + fvmr.offset;
+        region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.offset;
         region.size = size;
         fclose(map_file);
 
-        return true;
+        return region;
       }
     }
   }
