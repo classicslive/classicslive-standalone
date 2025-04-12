@@ -29,7 +29,7 @@ bool ClsHook::init(void)
                          PROCESS_VM_OPERATION, FALSE, m_ProcessId);
   if (!m_Handle)
     return false;
-  else if (!m_Window)
+  else if (!m_Window) /* Find an appropriate window if one wasn't given */
   {
     struct WindowInfo
     {
@@ -145,7 +145,7 @@ bool ClsHook::run(void)
 #endif
 }
 
-size_t ClsHook::read(void* dest, cl_addr_t address, size_t size)
+size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   size_t read = 0;
@@ -232,9 +232,8 @@ bool ClsHook::deepCopy(cl_search_t *search)
       continue;
     }
     else
-      success &= read
-      (
-        (uint8_t*)sbank->region->base_host + sbank->first_valid,
+      success &= read(
+        reinterpret_cast<uint8_t*>(sbank->region->base_host) + sbank->first_valid,
         sbank->first_valid,
         sbank->last_valid - sbank->first_valid + search->params.size
       ) != 0;

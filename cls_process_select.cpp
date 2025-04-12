@@ -80,14 +80,18 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
     hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, process->pid);
     if (hProcess)
     {
-      /* Get window title */
+      /* Get window title; filter ourself */
       GetWindowTextA(hWnd, process->title, sizeof(process->title));
       process->window = hWnd;
+      if (!strncmp(process->title, "classicslive", strlen("classicslive")))
+        goto cleanup;
 
-      /* Get memory usage */
+      /* Get memory usage; filter processes with no memory commit */
       PROCESS_MEMORY_COUNTERS pmc;
-      if (GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc)))
+      if (GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc)) && pmc.WorkingSetSize)
         process->memory = pmc.WorkingSetSize;
+      else
+        goto cleanup;
 
       /* Get CPU usage */
       FILETIME creationTime, exitTime, kernelTime, userTime;
@@ -103,6 +107,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
       }
       *processes->process_count += 1;
     }
+    cleanup:
     CloseHandle(hProcess);
   }
 
