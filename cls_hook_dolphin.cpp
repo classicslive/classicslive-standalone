@@ -1,14 +1,19 @@
 #include "cls_hook_dolphin.h"
 
-bool ClsHookDolphin::getIdentification(uint8_t **data, unsigned int *size)
+bool ClsHookDolphin::getIdentification(cl_game_identifier_t *identifier)
 {
   int temp = 0;
 
-  *data = reinterpret_cast<uint8_t*>(&temp);
-  *size = sizeof(temp);
-  m_MemorySize = 24 * 1024 * 1024;
+  if (identifier)
+  {
+    identifier->data = reinterpret_cast<uint8_t*>(&temp);
+    identifier->size = sizeof(temp);
+    m_MemorySize = 24 * 1024 * 1024;
 
-  return true;
+    return true;
+  }
+  else
+    return false;
 }
 
 bool ClsHookDolphin::init(void)

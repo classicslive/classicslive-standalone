@@ -3,15 +3,6 @@
 
 #include "cls_hook.h"
 
-typedef struct
-{
-  /* Big endian */
-  uint64_t title_id;
-
-  /* Big endian */
-  uint64_t version;
-} cl_identify_cafe_t;
-
 class ClsHookCemu : public ClsHook
 {
 public:
@@ -19,14 +10,11 @@ public:
 
   bool run(void) override;
 
-  bool getIdentification(uint8_t **data, unsigned int *size) override;
+  bool getIdentification(cl_game_identifier_t *identifier) override;
 
   const char *getLibrary(void) override { return "cemu"; }
 
   uint64_t memorySize(void) override { return 0x40000000; }
-
-private:
-  cl_identify_cafe_t m_Identification;
 };
 
 #endif

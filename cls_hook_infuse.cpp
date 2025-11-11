@@ -5,13 +5,19 @@ static cl_identify_zeebo_t test_bundle = { 0x233b0 };
 ClsHookInfuse::ClsHookInfuse(unsigned pid, const cls_window_preset_t *preset,
   void *window) : ClsHook(pid, preset, window) {}
 
-bool ClsHookInfuse::getIdentification(uint8_t **data, unsigned int *size)
+bool ClsHookInfuse::getIdentification(cl_game_identifier_t *identifier)
 {
-  *data = reinterpret_cast<uint8_t*>(&test_bundle);
-  *size = sizeof(test_bundle);
-  m_MemorySize = 0xA000000;
+  if (identifier)
+  {
+    identifier->type = CL_GAMEIDENTIFIER_FILE_HASH;
+    identifier->data = reinterpret_cast<uint8_t*>(&test_bundle);
+    identifier->size = sizeof(test_bundle);
+    m_MemorySize = 0xA000000;
 
-  return true;
+    return true;
+  }
+  else
+    return false;
 }
 
 bool ClsHookInfuse::init(void)

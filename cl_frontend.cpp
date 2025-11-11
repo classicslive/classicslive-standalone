@@ -163,8 +163,8 @@ ClsMain::ClsMain(void)
   m_Timer->start();
 
   m_ProcessSelect = new ClsProcessSelect();
-  connect(m_ProcessSelect, SIGNAL(selected(uint, void*)),
-          this, SLOT(selected(uint, void*)));
+  connect(m_ProcessSelect, SIGNAL(selected(uint,void*)),
+          this, SLOT(selected(uint,void*)));
   m_ProcessSelect->show();
 }
 
@@ -177,13 +177,13 @@ void ClsMain::run(void)
 void ClsMain::selected(uint pid, void *window)
 {
   ClsHookRyujinx *hook = new ClsHookRyujinx(pid, nullptr, window);
-  uint8_t *data;
-  unsigned size;
+  cl_game_identifier_t identifier;
 
-  if (hook->init() && hook->getIdentification(&data, &size))
+  memset(&identifier, 0, sizeof(identifier));
+  if (hook->init() && hook->getIdentification(&identifier))
   {
     hooks.push_back(hook);
-    cl_init(data, size, "");
+    cl_login_and_start(identifier);
   }
 }
 

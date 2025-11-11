@@ -1,15 +1,17 @@
 #include <QString>
-#include <QtEndian>
 
 #include "cls_hook_ryujinx.h"
 
 ClsHookRyujinx::ClsHookRyujinx(unsigned pid, const cls_window_preset_t *preset,
   void *window) : ClsHook(pid, preset, window) {}
 
-static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
+static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {
   int count = 0;
   int position = -1;
+
+  if (!identifier)
+    return false;
 
   /* Find the second closed parentheses in the string */
   for (int i = str.length() - 1; i >= 0; i--)
@@ -34,44 +36,43 @@ static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
   if (openPosition == -1)
     return false;
 
-  /* Cast the title ID to a 64-bit integer */
+  /* Cast the title ID to a 64-bit integer to make sure it's valid and non-zero */
   QString title_id_string = str.mid(openPosition + 1,
                                     position - openPosition - 1);
   bool ok;
   auto title_id = title_id_string.toULongLong(&ok, 16);
   if (!ok || !title_id)
     return false;
-  ident->title_id = title_id;
+  snprintf(identifier->product, sizeof(identifier->product), "%s",
+           title_id_string.toUtf8().constData());
 
   /* Get the version string by reading between the parentheses and the 'v' */
   int v_position = str.lastIndexOf('v', openPosition);
   QString version_string = str.mid(v_position + 1,
                                    openPosition - v_position - 1).trimmed();
   if (version_string.isEmpty() ||
-      static_cast<unsigned long long>(version_string.length()) >= sizeof(ident->version))
+      static_cast<unsigned long long>(version_string.length()) >= sizeof(identifier->version))
     return false;
 
   /* Copy it into the identification struct and set the remainder to 00 */
-  memset(ident->version, 0, sizeof(ident->version));
-  snprintf(ident->version, sizeof(ident->version), "%s",
+  memset(identifier->version, 0, sizeof(identifier->version));
+  snprintf(identifier->version, sizeof(identifier->version), "%s",
            version_string.toUtf8().constData());
 
   return true;
 }
 
-bool ClsHookRyujinx::getIdentification(uint8_t **data, unsigned int *size)
+bool ClsHookRyujinx::getIdentification(cl_game_identifier_t *identifier)
 {
   char window_title[256];
 
   if (!getWindowTitle(window_title, sizeof(window_title)))
     return false;
-  else if (!get_title_id(&m_Identification, QString(window_title)))
+  else if (!get_title_id(identifier, QString(window_title)))
     return false;
   else
   {
-    *data = reinterpret_cast<uint8_t*>(&m_Identification);
-    *size = sizeof(m_Identification);
-
+    identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
     return true;
   }
 }

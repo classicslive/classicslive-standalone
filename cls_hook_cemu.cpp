@@ -1,10 +1,9 @@
 #include <QRegExp>
 #include <QString>
-#include <QtEndian>
 
 #include "cls_hook_cemu.h"
 
-static bool get_title_id(cl_identify_cafe_t *ident, const QString &str)
+static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {
   int position = -1;
 
@@ -27,15 +26,15 @@ static bool get_title_id(cl_identify_cafe_t *ident, const QString &str)
   if (v_pos == -1)
     return false;
 
-  /* Cast the version to a big endian 16-bit integer */
+  /* Cast the version to an integer to verify valid */
   QString version_string = str.mid(v_pos + 1,
                                    position - v_pos - 1);
   bool ok;
   uint64_t version = version_string.toUShort(&ok, 10);
   if (!ok)
     return false;
-  cl_read(&ident->version, (uint8_t*)&version, 0, sizeof(version),
-          CL_ENDIAN_BIG);
+  snprintf(identifier->version, sizeof(identifier->version), "%s",
+           version_string.toUtf8().constData());
 
   /* Get the title ID by reading between the next brackets */
   int closed_pos = str.lastIndexOf(']', v_pos);
@@ -44,30 +43,26 @@ static bool get_title_id(cl_identify_cafe_t *ident, const QString &str)
                                     closed_pos - open_pos - 1).remove('-');
   if (title_id_string.isEmpty())
     return false;
-
-  /* Copy it into the identification struct and set the remainder to 00 */
   uint64_t title_id = title_id_string.toULongLong(&ok, 16);
-  if (!ok)
+  if (!ok || !title_id)
     return false;
-  cl_read(&ident->title_id, (uint8_t*)&title_id, 0, sizeof(title_id),
-          CL_ENDIAN_BIG);
+  snprintf(identifier->product, sizeof(identifier->product), "%s",
+           title_id_string.toUtf8().constData());
 
   return true;
 }
 
-bool ClsHookCemu::getIdentification(uint8_t **data, unsigned int *size)
+bool ClsHookCemu::getIdentification(cl_game_identifier_t *identifier)
 {
   char window_title[256];
 
   if (!getWindowTitle(window_title, sizeof(window_title)))
     return false;
-  else if (!get_title_id(&m_Identification, QString(window_title)))
+  else if (!get_title_id(identifier, QString(window_title)))
     return false;
   else
   {
-    *data = reinterpret_cast<uint8_t*>(&m_Identification);
-    *size = sizeof(m_Identification);
-
+    identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
     return true;
   }
 }

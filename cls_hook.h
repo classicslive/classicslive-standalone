@@ -138,11 +138,10 @@ public:
    * @param size The size of the data
    * @return Whether or not identification info could be retrieved
    */
-  virtual bool getIdentification(uint8_t **data, unsigned *size)
+  virtual bool getIdentification(cl_game_identifier_t *identifier)
   {
-    *data = nullptr;
-    *size = 0;
-
+    if (identifier)
+      identifier->type = CL_GAMEIDENTIFIER_INVALID;
     return false;
   }
 

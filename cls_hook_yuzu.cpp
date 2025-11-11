@@ -1,12 +1,14 @@
 #include <QString>
 #include <QStringList>
-#include <QtEndian>
 
 #include "cls_hook_yuzu.h"
 
-static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
+static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {
   int position = -1;
+
+  if (!identifier)
+    return false;
 
   QStringList split = str.split('|');
 
@@ -19,24 +21,23 @@ static bool get_title_id(cl_identify_nx_t *ident, const QString &str)
     return false;
   QString title_string = str.mid(0, openPosition - 1).trimmed();
   if (title_string.isEmpty() ||
-      static_cast<size_t>(title_string.length()) >= sizeof(ident->version))
+      static_cast<size_t>(title_string.length()) >= sizeof(identifier->version))
     return false;
+  snprintf(identifier->product, sizeof(identifier->product), "%s",
+           title_string.toUtf8().constData());
 
   /* Get the version string */
   QString version_string = split[2].trimmed();
   if (version_string.isEmpty() ||
-      static_cast<size_t>(version_string.length()) >= sizeof(ident->version))
+      static_cast<size_t>(version_string.length()) >= sizeof(identifier->version))
     return false;
-
-  /* Copy it into the identification struct and set the remainder to 00 */
-  memset(ident->version, 0, sizeof(ident->version));
-  snprintf(ident->version, sizeof(ident->version), "%s",
+  snprintf(identifier->version, sizeof(identifier->version), "%s",
            version_string.toUtf8().constData());
 
   return true;
 }
 
-bool ClsHookYuzu::getIdentification(uint8_t **data, unsigned int *size)
+bool ClsHookYuzu::getIdentification(cl_game_identifier_t *identifier)
 {
   char window_title[256];
 
@@ -45,13 +46,11 @@ bool ClsHookYuzu::getIdentification(uint8_t **data, unsigned int *size)
 
   if (!getWindowTitle(window_title, sizeof(window_title)))
     return false;
-  else if (!get_title_id(&m_Identification, QString(window_title)))
+  else if (!get_title_id(identifier, QString(window_title)))
     return false;
   else
   {
-    *data = reinterpret_cast<uint8_t*>(&m_Identification);
-    *size = sizeof(m_Identification);
-
+    identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
     return true;
   }
 }

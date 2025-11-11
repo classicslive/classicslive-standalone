@@ -10,7 +10,7 @@ public:
 
   bool run(void) override;
 
-  bool getIdentification(uint8_t **data, unsigned *size) override;
+  bool getIdentification(cl_game_identifier_t *identifier) override;
 
   const char *getLibrary(void) override { return "dolphin"; }
 

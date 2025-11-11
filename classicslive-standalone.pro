@@ -11,7 +11,8 @@ GIT_VERSION = $$system(git describe --tags)
 DEFINES += \
   GIT_VERSION=\\\"$$GIT_VERSION\\\" \
   CL_EXTERNAL_MEMORY=1 \
-  CL_HAVE_EDITOR=1
+  CL_HAVE_EDITOR=1 \
+  CL_HAVE_FILESYSTEM=1
 
 INCLUDEPATH += \
   $$PWD/classicslive-integration \

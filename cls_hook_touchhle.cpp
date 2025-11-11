@@ -1,12 +1,21 @@
 #include "cls_hook_touchhle.h"
 
+#include <string.h>
+
 static cl_identify_bundle_t test_bundle = { "jp.co.capcom.res4", "1.00.00" };
 
-bool ClsHookTouchhle::getIdentification(uint8_t **data, unsigned int *size)
+bool ClsHookTouchhle::getIdentification(cl_game_identifier_t *identifier)
 {
-  *data = reinterpret_cast<uint8_t*>(&test_bundle);
-  *size = sizeof(test_bundle);
-  return true;
+  if (identifier)
+  {
+    identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
+    strncpy(identifier->product, test_bundle.identifier, sizeof(identifier->product));
+    strncpy(identifier->version, test_bundle.version, sizeof(identifier->version));
+
+    return true;
+  }
+  else
+    return false;
 }
 
 bool ClsHookTouchhle::init(void)

@@ -3,6 +3,7 @@
 
 #ifdef __linux__
 #include <signal.h>
+#include <stdio.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #endif
