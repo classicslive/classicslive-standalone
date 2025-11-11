@@ -16,8 +16,8 @@ ClsNetworkManager::ClsNetworkManager()
   qRegisterMetaType<cls_net_cb>();
   connect(this, SIGNAL(finished(QNetworkReply*)),
           this, SLOT(onFinished(QNetworkReply*)));
-  connect(this, SIGNAL(request(const char*, char*, cls_net_cb)),
-          this, SLOT(onRequest(const char*, char*, cls_net_cb)));
+  connect(this, SIGNAL(request(const char*,char*,cls_net_cb)),
+          this, SLOT(onRequest(const char*,char*,cls_net_cb)));
 }
 
 void ClsNetworkManager::onFinished(QNetworkReply *reply)
@@ -36,11 +36,11 @@ void ClsNetworkManager::onFinished(QNetworkReply *reply)
   response.data = response_array.data();
 
   bool success;
-  if (cl_json_get(&success, response.data, "success", CL_JSON_BOOLEAN, 1) && !success)
+  if (cl_json_get(&success, response.data, CL_JSON_KEY_SUCCESS, CL_JSON_TYPE_BOOLEAN, 1) && !success)
   {
     char reason[2048];
 
-    if (cl_json_get(reason, response.data, "reason", CL_JSON_STRING, sizeof(reason)))
+    if (cl_json_get(reason, response.data, CL_JSON_KEY_REASON, CL_JSON_TYPE_STRING, sizeof(reason)))
       cl_fe_display_message(CL_MSG_ERROR, reason);
     else
       cl_fe_display_message(CL_MSG_ERROR, "Unknown network error.");
