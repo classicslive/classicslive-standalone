@@ -70,7 +70,7 @@ bool ClsHookCemu::getIdentification(cl_game_identifier_t *identifier)
 bool ClsHookCemu::init()
 {
   /* One gigabyte of contiguous RAM for the CafeOS foreground app */
-  cls_find_memory_region_t fmr =
+  static const cls_find_memory_region_t fmr =
   {
     .host_offset=0x0E000000,
     .host_size=0x4E000000,

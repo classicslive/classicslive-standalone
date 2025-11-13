@@ -2,6 +2,25 @@
 
 #include <string.h>
 
+/** @todo this is no longer needed but string lengths should be documented */
+typedef struct
+{
+  /**
+   * The bundle identifier of the software; ie, "net.classicslive.cls". Make
+   * sure to fill any unused data with 00s.
+   * https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleidentifier
+   * https://stackoverflow.com/questions/49001779/what-is-maximum-allowed-length-of-ios-bundleid
+   */
+  char identifier[155 + 1];
+
+  /**
+   * The version of the software as a string; ie, "1.3.0". Make sure to fill
+   * any unused data with 00s.
+   * https://stackoverflow.com/questions/38330781/the-value-for-key-cfbundleversion-in-the-info-plist-file-must-be-no-longer-than
+   */
+  char version[18 + 1];
+} cl_identify_bundle_t;
+
 static cl_identify_bundle_t test_bundle = { "jp.co.capcom.res4", "1.00.00" };
 
 bool ClsHookTouchhle::getIdentification(cl_game_identifier_t *identifier)
@@ -21,11 +40,12 @@ bool ClsHookTouchhle::getIdentification(cl_game_identifier_t *identifier)
 bool ClsHookTouchhle::init(void)
 {
   /**
-   * Query all memory regions looking for one of size 4GB + some extra. This
-   * emulator allocates the entire possible 32-bit address space into one
-   * bucket, but for reasonable purposes, CL is only accessing the top 1GB.
+   * The emulator allocates the entire 32-bit address space + some extra, but
+   * currently it seems anything relevant is always in the top 1GB. Should the
+   * emulator progress to supporting operating system versions for devices with
+   * more memory, this should be updated.
    */
-  cls_find_memory_region_t fmr =
+  static const cls_find_memory_region_t fmr =
   {
     .host_offset=0x40,
     .host_size=0x100001000,
