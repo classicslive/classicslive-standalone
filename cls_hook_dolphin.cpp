@@ -18,10 +18,18 @@ bool ClsHookDolphin::getIdentification(cl_game_identifier_t *identifier)
 
 bool ClsHookDolphin::init(void)
 {
-  if (!ClsHook::init())
-    return false;
-  else
-    return ClsHook::initViaMemoryRegions({0x2000000, 0});
+  /** @todo Wii, Triforce */
+  static const cls_find_memory_region_t fmr =
+  {
+    .host_offset=0,
+    .host_size=0x2000000,
+    .guest_base=0,
+    .guest_size=0,
+    .endianness=CL_ENDIAN_BIG,
+    .pointer_size=4
+  };
+
+  return ClsHook::init() && initViaMemoryRegions(fmr);
 }
 
 bool ClsHookDolphin::run(void)
