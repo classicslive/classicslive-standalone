@@ -39,11 +39,24 @@ struct cls_window_preset_t
 
 typedef struct
 {
-  /* The size of the target memory region */
-  uint64_t size;
+  /**
+   * The amount to offset the base in host memory after finding region of
+   * specified size
+   */
+  cl_addr_t host_offset;
 
-  /* The amount to offset the base after finding region of specified size */
-  uint64_t offset;
+  /* The size of the target memory region in host memory */
+  cl_addr_t host_size;
+
+  /* The base virtual address of this region in guest memory */
+  cl_addr_t guest_base;
+
+  /* The size of the target memory region in guest memory */
+  cl_addr_t guest_size;
+
+  cl_endianness endianness;
+
+  unsigned pointer_size;
 } cls_find_memory_region_t;
 
 const cls_window_preset_t cls_window_presets[] =
