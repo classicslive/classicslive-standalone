@@ -6,6 +6,9 @@
 class ClsHookTouchhle : public ClsHook
 {
 public:
+  ClsHookTouchhle(unsigned pid, const cls_window_preset_t *preset, void *window) :
+    ClsHook(pid, preset, window) {}
+
   bool init(void) override;
 
   bool run(void) override;
