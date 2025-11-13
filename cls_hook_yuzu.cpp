@@ -58,10 +58,21 @@ bool ClsHookYuzu::getIdentification(cl_game_identifier_t *identifier)
 
 bool ClsHookYuzu::init(void)
 {
-  if (!ClsHook::init())
-    return false;
-  else
-    return initViaMemoryRegions({ memorySize(), 0 });
+  /**
+   * @todo This may be more in the future.
+   * See https://switchbrew.org/wiki/SMC#MemoryMode
+   */
+  static const cls_find_memory_region_t fmr =
+  {
+    .host_offset=0,
+    .host_size=0x100000000,
+    .guest_base=0,
+    .guest_size=0xC0000000,
+    .endianness=CL_ENDIAN_LITTLE,
+    .pointer_size=4
+  };
+
+  return ClsHook::init() && initViaMemoryRegions(fmr);
 }
 
 bool ClsHookYuzu::run(void)
