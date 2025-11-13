@@ -3,11 +3,6 @@
 
 #include "cls_hook.h"
 
-typedef struct
-{
-  uint64_t test;
-} cl_identify_zeebo_t;
-
 class ClsHookInfuse : public ClsHook
 {
 public:
@@ -21,11 +16,6 @@ public:
   bool getIdentification(cl_game_identifier_t *identifier) override;
 
   const char *getLibrary(void) override { return "infuse"; }
-
-  uint64_t memorySize(void) override { return 0x0A000000; }
-
-private:
-  cl_identify_zeebo_t m_Identification;
 };
 
 #endif
