@@ -30,7 +30,7 @@ static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
   QString version_string = str.mid(v_pos + 1,
                                    position - v_pos - 1);
   bool ok;
-  uint64_t version = version_string.toUShort(&ok, 10);
+  version_string.toUShort(&ok, 10);
   if (!ok)
     return false;
   snprintf(identifier->version, sizeof(identifier->version), "%s",
