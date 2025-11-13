@@ -41,8 +41,9 @@ bool ClsHookYuzu::getIdentification(cl_game_identifier_t *identifier)
 {
   char window_title[256];
 
+  /** @todo what was i doing here? cycle count?
   cl_memory_region_t region = findMemoryRegion({ 0x1A600, 0 });
-  /** @todo */
+  */
 
   if (!getWindowTitle(window_title, sizeof(window_title)))
     return false;

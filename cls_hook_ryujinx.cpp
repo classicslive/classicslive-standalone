@@ -2,9 +2,6 @@
 
 #include "cls_hook_ryujinx.h"
 
-ClsHookRyujinx::ClsHookRyujinx(unsigned pid, const cls_window_preset_t *preset,
-  void *window) : ClsHook(pid, preset, window) {}
-
 static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {
   int count = 0;

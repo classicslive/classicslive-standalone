@@ -2,9 +2,6 @@
 
 static unsigned test_bundle = 0x233b0;
 
-ClsHookInfuse::ClsHookInfuse(unsigned pid, const cls_window_preset_t *preset,
-  void *window) : ClsHook(pid, preset, window) {}
-
 bool ClsHookInfuse::getIdentification(cl_game_identifier_t *identifier)
 {
   if (identifier)

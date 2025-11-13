@@ -6,9 +6,6 @@
 class ClsHookInfuse : public ClsHook
 {
 public:
-  ClsHookInfuse(unsigned pid = 0, const cls_window_preset_t *preset = nullptr,
-                void *window = nullptr);
-
   bool init(void) override;
 
   bool run(void) override;

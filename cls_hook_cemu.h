@@ -13,8 +13,6 @@ public:
   bool getIdentification(cl_game_identifier_t *identifier) override;
 
   const char *getLibrary(void) override { return "cemu"; }
-
-  uint64_t memorySize(void) override { return 0x40000000; }
 };
 
 #endif
