@@ -57,6 +57,11 @@ void ClsNetworkManager::onRequest(QString url, QString data, cls_net_cb callback
   QNetworkRequest request;
   request.setHeader(QNetworkRequest::ContentTypeHeader,
                     QStringLiteral("application/x-www-form-urlencoded"));
+#ifdef GIT_VERSION
+  request.setRawHeader("User-Agent", QStringLiteral("classicslive-standalone %1").arg(GIT_VERSION).toUtf8());
+#else
+  request.setRawHeader("User-Agent", "classicslive-standalone");
+#endif
   request.setUrl(QUrl(url));
 
   QByteArray post_data;
