@@ -108,10 +108,24 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
     if (sscanf(line, "%lx-%lx", &addr_start, &addr_end) == 2)
     {
       size = addr_end - addr_start;
-      if (size == fvmr.size)
+      if (size == fvmr.host_size)
       {
-        region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.offset;
-        region.size = size;
+        /* host fields */
+        region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.host_offset;
+        region.base_alloc = reinterpret_cast<void*>(addr_start);
+
+        /* guest fields */
+        region.base_guest = fvmr.guest_base;
+        region.size = fvmr.guest_size;
+
+        /* status fields */
+        region.flags.bits.read = 1;
+        region.flags.bits.write = 1;
+
+        /* miscellaneous fields */
+        region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
+        region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
+
         fclose(map_file);
 
         return region;
@@ -120,6 +134,7 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
   }
   fclose(map_file);
 #endif
+
   return region;
 }
 
