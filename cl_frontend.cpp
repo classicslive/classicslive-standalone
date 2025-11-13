@@ -78,6 +78,7 @@ const char* cl_fe_library_name(void)
 unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
   unsigned size)
 {
+  CL_UNUSED(mem);
   if (hooks.size() != 1)
     return false;
   else
@@ -98,6 +99,7 @@ unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
 unsigned cl_fe_memory_write(cl_memory_t *mem, const void *src, cl_addr_t address,
   unsigned size)
 {
+  CL_UNUSED(mem);
   if (hooks.size() != 1)
     return false;
   else
@@ -133,9 +135,10 @@ void cl_fe_unpause(void)
     hooks[0]->unpause();
 }
 
-void cl_fe_network_post(const char *url, char *data, void(*callback)(cl_network_response_t))
+void cl_fe_network_post(const char *url, char *data, cl_network_cb_t callback,
+                        void *userdata)
 {
-  cls_net_cb cb = { callback };
+  cls_net_cb cb = { callback, userdata };
   emit network_manager.request(url, data, cb);
 }
 
