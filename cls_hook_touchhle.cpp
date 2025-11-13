@@ -25,10 +25,17 @@ bool ClsHookTouchhle::init(void)
    * emulator allocates the entire possible 32-bit address space into one
    * bucket, but for reasonable purposes, CL is only accessing the top 1GB.
    */
-  if (!ClsHook::init())
-    return false;
-  else
-    return ClsHook::initViaMemoryRegions({0x100001000, 0x40});
+  cls_find_memory_region_t fmr =
+  {
+    .host_offset=0x40,
+    .host_size=0x100001000,
+    .guest_base=0,
+    .guest_size=0x40000000,
+    .endianness=CL_ENDIAN_LITTLE,
+    .pointer_size=4
+  };
+
+  return ClsHook::init() && initViaMemoryRegions(fmr);
 }
 
 bool ClsHookTouchhle::run(void)
