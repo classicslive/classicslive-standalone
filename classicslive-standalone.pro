@@ -6,7 +6,8 @@ win32 {
   LIBS += -LPsapi.lib -lpsapi
 }
 
-GIT_VERSION = $$system(git describe --tags)
+GIT_VERSION = $$system(git rev-parse --short=8 HEAD 2>$$QMAKE_NULL_DEVICE)
+isEmpty(GIT_VERSION): GIT_VERSION = unknown
 
 DEFINES += \
   GIT_VERSION=\\\"$$GIT_VERSION\\\" \
