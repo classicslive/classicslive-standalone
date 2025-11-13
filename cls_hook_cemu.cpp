@@ -69,7 +69,18 @@ bool ClsHookCemu::getIdentification(cl_game_identifier_t *identifier)
 
 bool ClsHookCemu::init()
 {
-  return ClsHook::init() && initViaMemoryRegions({0x4E000000, 0x0E000000});
+  /* One gigabyte of contiguous RAM for the CafeOS foreground app */
+  cls_find_memory_region_t fmr =
+  {
+    .host_offset=0x0E000000,
+    .host_size=0x4E000000,
+    .guest_base=0x10000000,
+    .guest_size=0x40000000,
+    .endianness=CL_ENDIAN_BIG,
+    .pointer_size=4
+  };
+
+  return ClsHook::init() && initViaMemoryRegions(fmr);
 }
 
 bool ClsHookCemu::run()
