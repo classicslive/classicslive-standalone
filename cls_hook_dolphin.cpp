@@ -8,7 +8,6 @@ bool ClsHookDolphin::getIdentification(cl_game_identifier_t *identifier)
   {
     identifier->data = reinterpret_cast<uint8_t*>(&temp);
     identifier->size = sizeof(temp);
-    m_MemorySize = 24 * 1024 * 1024;
 
     return true;
   }
@@ -26,7 +25,8 @@ bool ClsHookDolphin::init(void)
     .guest_base=0,
     .guest_size=0,
     .endianness=CL_ENDIAN_BIG,
-    .pointer_size=4
+    .pointer_size=4,
+    .title="MEM0"
   };
 
   return ClsHook::init() && initViaMemoryRegions(fmr);

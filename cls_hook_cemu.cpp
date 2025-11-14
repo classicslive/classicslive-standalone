@@ -36,6 +36,9 @@ static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
   snprintf(identifier->version, sizeof(identifier->version), "%s",
            version_string.toUtf8().constData());
 
+  /** @todo */
+  identifier->filename = "Meme Run";
+
   /* Get the title ID by reading between the next brackets */
   int closed_pos = str.lastIndexOf(']', v_pos);
   int open_pos = str.lastIndexOf(' ', closed_pos);
@@ -77,7 +80,8 @@ bool ClsHookCemu::init()
     .guest_base=0x10000000,
     .guest_size=0x40000000,
     .endianness=CL_ENDIAN_BIG,
-    .pointer_size=4
+    .pointer_size=4,
+    .title = "CafeOS Foreground App"
   };
 
   return ClsHook::init() && initViaMemoryRegions(fmr);
