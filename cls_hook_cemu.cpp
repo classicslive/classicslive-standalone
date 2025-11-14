@@ -1,56 +1,87 @@
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QString>
 
 #include "cls_hook_cemu.h"
 
 static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {
-  int position = -1;
+  bool ok = false;
 
-  /* Find the first closed parentheses in the string */
-  for (int i = str.length() - 1; i >= 0; i--)
-  {
-    QChar ch = str[i];
-
-    if (ch == ']')
-    {
-      position = i;
-      break;
-    }
-  }
-  if (position == -1)
+  //
+  // 1. Extract the Title ID     [TitleId: 00000-00000]
+  //
+  int titleStart = str.indexOf("[TitleId:");
+  if (titleStart < 0)
     return false;
 
-  /* Find its matching 'v', use to get the version */
-  int v_pos = str.lastIndexOf('v', position);
-  if (v_pos == -1)
+  int titleEnd = str.indexOf("]", titleStart);
+  if (titleEnd < 0)
     return false;
 
-  /* Cast the version to an integer to verify valid */
-  QString version_string = str.mid(v_pos + 1,
-                                   position - v_pos - 1);
-  bool ok;
-  version_string.toUShort(&ok, 10);
-  if (!ok)
+  // Extract "00000-00000"
+  QString titleSegment = str.mid(titleStart, titleEnd - titleStart + 1);
+  QRegularExpression reTitle(R"(TitleId:\s*([0-9A-Fa-f]+)-([0-9A-Fa-f]+))");
+  QRegularExpressionMatch m = reTitle.match(titleSegment);
+  if (!m.hasMatch())
     return false;
-  snprintf(identifier->version, sizeof(identifier->version), "%s",
-           version_string.toUtf8().constData());
 
-  /** @todo */
-  identifier->filename = "Meme Run";
-
-  /* Get the title ID by reading between the next brackets */
-  int closed_pos = str.lastIndexOf(']', v_pos);
-  int open_pos = str.lastIndexOf(' ', closed_pos);
-  QString title_id_string = str.mid(open_pos + 1,
-                                    closed_pos - open_pos - 1).remove('-');
-  if (title_id_string.isEmpty())
-    return false;
+  QString title_id_string = m.captured(1) + m.captured(2); // remove dash
   uint64_t title_id = title_id_string.toULongLong(&ok, 16);
   if (!ok || !title_id)
     return false;
-  snprintf(identifier->product, sizeof(identifier->product), "%s",
-           title_id_string.toUtf8().constData());
+
+  snprintf(identifier->product, sizeof(identifier->product),
+           "%s", title_id_string.toUtf8().constData());
+
+  //
+  // 2. Extract filename (between last "] " and last " [")
+  //
+  int fnameStart = str.lastIndexOf("] ");
+  int fnameEnd   = str.lastIndexOf(" [");
+
+  if (fnameStart < 0 || fnameEnd < 0 || fnameEnd <= fnameStart)
+    return false;
+
+  QString filename = str.mid(fnameStart + 2,   // skip "] "
+                             fnameEnd - (fnameStart + 2));
+
+  filename = filename.trimmed();
+
+  if (filename.isEmpty())
+    return false;
+
+  snprintf(identifier->filename, sizeof(identifier->filename),
+           "%s", filename.toUtf8().constData());
+
+
+  //
+  // 3. Extract version string from something like:  [US v16]
+  //
+  // Look for the final "[...vNN]"
+  //
+  int versionOpen = str.lastIndexOf("[");
+  int versionClose = str.lastIndexOf("]");
+  if (versionOpen < 0 || versionClose <= versionOpen)
+    return false;
+
+  QString versionPart = str.mid(versionOpen + 1,
+                                versionClose - versionOpen - 1);
+
+  // Match "v16" or region + v16
+  QRegularExpression reVer(R"(v(\d+))");
+  QRegularExpressionMatch mv = reVer.match(versionPart);
+  if (!mv.hasMatch())
+    return false;
+
+  QString version_number = mv.captured(1); // just the digits
+
+  // Validate it's an integer
+  version_number.toUShort(&ok);
+  if (!ok)
+    return false;
+
+  snprintf(identifier->version, sizeof(identifier->version),
+           "%s", version_number.toUtf8().constData());
 
   return true;
 }
