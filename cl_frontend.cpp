@@ -53,15 +53,9 @@ bool cl_fe_install_membanks(void)
     return false;
   else
   {
-    cl_memory_region_t* region;
-
-    memory.regions = (cl_memory_region_t*)calloc(1, sizeof(cl_memory_region_t));
-    region = &memory.regions[0];
-    region->base_host = (uint8_t*)malloc(hooks[0]->memorySize());
-    region->base_guest = 0;
-    region->size = hooks[0]->memorySize();
-    snprintf(region->title, sizeof(region->title), "%s", cl_fe_library_name());
-    memory.region_count = 1;
+    memory.region_count = hooks[0]->regionCount();
+    memory.regions = reinterpret_cast<cl_memory_region_t*>(malloc(sizeof(cl_memory_region_t) * memory.region_count));
+    memcpy(memory.regions, hooks[0]->regions(), sizeof(cl_memory_region_t) * memory.region_count);
 
     return true;
   }
