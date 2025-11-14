@@ -57,6 +57,8 @@ typedef struct
   cl_endianness endianness;
 
   unsigned pointer_size;
+
+  const char *title;
 } cls_find_memory_region_t;
 
 const cls_window_preset_t cls_window_presets[] =
@@ -122,10 +124,6 @@ public:
 
   cl_memory_t* memory(void) { return m_Memory; }
 
-  virtual uintptr_t memoryData(void) { return m_MemoryData; }
-
-  virtual uint64_t memorySize(void) { return m_MemorySize; }
-
   /**
    * Extracts a number of bytes from an address in external process memory
    * into a provided buffer.
@@ -186,11 +184,15 @@ public:
 
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
 
+  cl_memory_region_t *regions(void) { return m_MemoryRegions; }
+
+  unsigned regionCount(void) { return m_MemoryRegionCount; }
+
 protected:
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
-  uintptr_t m_MemoryData = 0;
-  uint64_t m_MemorySize = 0;
+  cl_memory_region_t m_MemoryRegions[16];
+  unsigned m_MemoryRegionCount = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS

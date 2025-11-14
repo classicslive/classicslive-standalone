@@ -125,6 +125,7 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
         /* miscellaneous fields */
         region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
         region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
+        snprintf(region.title, sizeof(region.title), "%s", fvmr.title ? fvmr.title : "Memory region");
 
         fclose(map_file);
 
@@ -144,7 +145,8 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 
   if (region.size && region.base_host)
   {
-    m_MemoryData = reinterpret_cast<uintptr_t>(region.base_host);
+    m_MemoryRegions[m_MemoryRegionCount] = region;
+    m_MemoryRegionCount++;
     return true;
   }
   else
@@ -180,7 +182,10 @@ size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
   local_iov.iov_base = dest;
   local_iov.iov_len = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
+  remote_iov.iov_base = reinterpret_cast<void*>(
+    reinterpret_cast<cl_addr_t>(m_MemoryRegions[0].base_host) +
+    address -
+    m_MemoryRegions[0].base_guest);
   remote_iov.iov_len = size;
 
   read = process_vm_readv(m_ProcessId, &local_iov, 1,
@@ -218,7 +223,10 @@ size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
   local_iov.iov_base = const_cast<void*>(src);
   local_iov.iov_len = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
+  remote_iov.iov_base = reinterpret_cast<void*>(
+    reinterpret_cast<cl_addr_t>(m_MemoryRegions[0].base_host) +
+    address -
+    m_MemoryRegions[0].base_guest);
   remote_iov.iov_len = size;
 
   written = process_vm_writev(m_ProcessId, &local_iov, 1,
@@ -251,7 +259,7 @@ bool ClsHook::deepCopy(cl_search_t *search)
     else
       success &= read(
         reinterpret_cast<uint8_t*>(sbank->region->base_host) + sbank->first_valid,
-        sbank->first_valid,
+        sbank->region->base_guest + sbank->first_valid,
         sbank->last_valid - sbank->first_valid + search->params.size
       ) != 0;
   }
