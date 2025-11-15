@@ -12,10 +12,14 @@ typedef struct
 
 static const zeebo_game_t games[] =
 {
-  { "263019", "Ultimate Chess 3D" },
   { "274214", "Crash Bandicoot Nitro Kart 3D" },
-  { "274259", "Action Hero 3D" },
   { "274754", "Double Dragon" },
+  { "277229", "Zeebo Family Pack" },
+
+/*
+  { "263019", "Ultimate Chess 3D" },
+  { "274259", "Action Hero 3D" },
+
   { "274791", "Zeebo App (aparentemente não tem função)" },
   { "274802", "Quake" },
   { "274803", "FIFA 09" },
@@ -31,7 +35,6 @@ static const zeebo_game_t games[] =
   { "276809", "Zeebo Extreme Rolimã" },
 
   { "277083", "Bejeweled Twist" },
-  { "277229", "Zeebo Family Pack" },
   { "277380", "Galaxy on Fire" },
   { "277455", "Zenonia" },
   { "277495", "Zeebo Channels (Opera Mini)" },
@@ -73,6 +76,7 @@ static const zeebo_game_t games[] =
   { "280602", "Raging Thunder 2" },
   { "280634", "Turma da Mônica em: Vamos Brincar Vol.1" },
   { "280647", "Zeebo F.C. Super League" }
+*/
 };
 
 bool ClsHookInfuse::getIdentification(cl_game_identifier_t *identifier)
@@ -109,18 +113,9 @@ bool ClsHookInfuse::getIdentification(cl_game_identifier_t *identifier)
 
   // Fill the identifier
   identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
-
-  strncpy(identifier->product,
-          selected.product,
-          sizeof(identifier->product));
-
-  strncpy(identifier->filename,
-          selected.filename,
-          sizeof(identifier->filename));
-
-  strncpy(identifier->version,
-          "0",
-          sizeof(identifier->version));
+  strncpy(identifier->product, selected.product, sizeof(identifier->product));
+  strncpy(identifier->filename, selected.filename, sizeof(identifier->filename));
+  strncpy(identifier->version, "1", sizeof(identifier->version));
 
   return true;
 }
