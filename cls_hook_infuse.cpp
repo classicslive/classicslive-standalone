@@ -135,6 +135,7 @@ bool ClsHookInfuse::init(void)
     .guest_size=0xA000000,
     .endianness=CL_ENDIAN_LITTLE,
     .pointer_size=4,
+    .title = "128MB + 32MB DDR SDRAM"
   };
 
   return ClsHook::init() && initViaMemoryRegions(fmr);
