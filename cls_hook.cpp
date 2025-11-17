@@ -16,6 +16,8 @@ ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
   m_Preset = preset;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   m_Window = reinterpret_cast<HWND>(window);
+#else
+  CL_UNUSED(window);
 #endif
 }
 
@@ -290,27 +292,37 @@ bool ClsHook::getWindowTitle(char *buffer, unsigned buffer_len)
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return GetWindowTextA(m_Window, buffer, static_cast<int>(buffer_len));
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  if (!buffer || buffer_len == 0)
+    return false;
+
+  buffer[0] = '\0';
+
   char cmd[256];
   char line[1024];
 
-  snprintf(cmd, sizeof(cmd), "wmctrl -lp | awk -v pid=%u '$3 == pid'",
-           m_ProcessId);
-  FILE *cmd_file = popen(cmd, "r");
+  snprintf(cmd, sizeof(cmd),
+           "wmctrl -lp | awk -v pid=%u '$3 == pid'", m_ProcessId);
 
-  if (cmd_file == nullptr)
+  FILE *cmd_file = popen(cmd, "r");
+  if (!cmd_file)
     return false;
 
   bool found = false;
+
   while (fgets(line, sizeof(line), cmd_file))
   {
-    if (sscanf(line, "%*s %*d %*d %*s %[^\n]", buffer) == 1)
+    char title[1024];
+
+    if (sscanf(line, "%*s %*d %*d %*s %[^\n]", title) == 1)
     {
+      strncpy(buffer, title, buffer_len - 1);
+      buffer[buffer_len - 1] = '\0';
       found = true;
       break;
     }
   }
-  pclose(cmd_file);
 
+  pclose(cmd_file);
   return found;
 #else
   return false;
