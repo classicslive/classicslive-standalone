@@ -13,7 +13,7 @@ typedef struct
 static const zeebo_game_t games[] =
 {
   { "274214", "Crash Bandicoot Nitro Kart 3D" },
-  { "274754", "Double Dragon" },
+  { "274754", "DOUBLE DRAGON Zeebo" },
   { "277229", "Zeebo Family Pack" },
 
 /*
