@@ -17,17 +17,23 @@ extern "C"
 #include <tlhelp32.h>
 #endif
 
-enum cls_hook_method_t
+typedef enum
 {
-  HOOK_METHOD_BASIC = 0,
+  CLS_HOOK_GENERIC = 0,
 
-  HOOK_METHOD_CEMU,
+  CLS_HOOK_CEMU,
+  CLS_HOOK_DOLPHIN,
+  CLS_HOOK_INFUSE,
+  CLS_HOOK_RYUJINX,
+  CLS_HOOK_TOUCHHLE,
+  CLS_HOOK_YUZU,
 
-  HOOK_METHOD_SIZE
-};
+  CLS_HOOK_SIZE
+} cls_hook_type;
 
 struct cls_window_preset_t
 {
+  cls_hook_type type;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   const char *window_class;
   const char *window_title;
@@ -64,6 +70,7 @@ typedef struct
 const cls_window_preset_t cls_window_presets[] =
 {
   {
+    CLS_HOOK_CEMU,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "^wxWindowNR$",
     "^Cemu [1-9].*",
@@ -74,6 +81,7 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
+    CLS_HOOK_RYUJINX,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "gdkWindowToplevel", "",
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
@@ -83,15 +91,17 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
+    CLS_HOOK_TOUCHHLE,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "SDL_app", "",
-#elif defined (__linux__)
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
     "todo",
 #endif
     "touchHLE"
   },
 
   {
+    CLS_HOOK_INFUSE,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "GLFW30", "^Infuse .*",
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
@@ -101,6 +111,7 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
+    CLS_HOOK_GENERIC,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     nullptr, nullptr,
 #else

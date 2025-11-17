@@ -4,9 +4,17 @@
 #include <QMessageBox>
 #include <QTimer>
 
+#include <fstream>
+#include <regex>
+#include <sstream>
+#include <string>
+
 #include "cls_hook.h"
 #include "cls_hook_cemu.h"
+#include "cls_hook_dolphin.h"
+#include "cls_hook_infuse.h"
 #include "cls_hook_ryujinx.h"
+#include "cls_hook_touchhle.h"
 #include "cls_hook_yuzu.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
@@ -21,7 +29,7 @@ extern "C"
 }
 #include <cl_frontend.h>
 
-static std::vector<ClsHook*> hooks;
+static std::vector<std::unique_ptr<ClsHook>> hooks;
 static ClsNetworkManager network_manager;
 
 void cl_fe_display_message(unsigned level, const char *msg)
@@ -171,15 +179,70 @@ void ClsMain::run(void)
     cl_run();
 }
 
+std::string getProcessTitle(uint32_t pid)
+{
+  std::ostringstream path;
+  path << "/proc/" << pid << "/comm";
+
+  std::ifstream file(path.str());
+  if (!file.is_open())
+  {
+    return "";
+  }
+
+  std::string title;
+  std::getline(file, title);
+  return title;
+}
+
+static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
+{
+  cls_hook_type type = CLS_HOOK_GENERIC;
+
+  for (const auto& preset : cls_window_presets)
+  {
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    if (preset.window_class &&
+        std::regex_match(getWindowClassName(window), std::regex(preset.window_class)) &&
+        std::regex_match(getWindowTitle(window), std::regex(preset.window_title)))
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    if (preset.process_title &&
+        std::regex_match(getProcessTitle(pid), std::regex(preset.process_title)))
+#endif
+    {
+      type = preset.type;
+      break;
+    }
+  }
+
+  switch (type)
+  {
+  case CLS_HOOK_CEMU:
+    return std::make_unique<ClsHookCemu>(pid, nullptr, window);
+  case CLS_HOOK_DOLPHIN:
+    return std::make_unique<ClsHookDolphin>(pid, nullptr, window);
+  case CLS_HOOK_INFUSE:
+    return std::make_unique<ClsHookInfuse>(pid, nullptr, window);
+  case CLS_HOOK_RYUJINX:
+    return std::make_unique<ClsHookRyujinx>(pid, nullptr, window);
+  case CLS_HOOK_TOUCHHLE:
+    return std::make_unique<ClsHookTouchhle>(pid, nullptr, window);
+  case CLS_HOOK_YUZU:
+    return std::make_unique<ClsHookYuzu>(pid, nullptr, window);
+  default:
+    return nullptr;
+  }
+}
+
 void ClsMain::selected(uint pid, void *window)
 {
-  ClsHookRyujinx *hook = new ClsHookRyujinx(pid, nullptr, window);
+  auto hook = createHook(pid, window);
   cl_game_identifier_t identifier;
 
   memset(&identifier, 0, sizeof(identifier));
-  if (hook->init() && hook->getIdentification(&identifier))
+  if (hook && hook->init() && hook->getIdentification(&identifier))
   {
-    hooks.push_back(hook);
+    hooks.push_back(std::move(hook));
     cl_login_and_start(identifier);
   }
 }
