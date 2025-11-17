@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QCloseEvent>
 #include <QFileDialog>
 #include <QMainWindow>
 #include <QMessageBox>
@@ -171,6 +172,13 @@ ClsMain::ClsMain(void)
   connect(m_ProcessSelect, SIGNAL(selected(uint,void*)),
           this, SLOT(selected(uint,void*)));
   m_ProcessSelect->show();
+}
+
+void ClsMain::closeEvent(QCloseEvent *event)
+{
+  cl_free();
+  qApp->quit();
+  event->accept();
 }
 
 void ClsMain::run(void)
