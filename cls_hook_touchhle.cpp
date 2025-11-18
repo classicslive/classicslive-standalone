@@ -30,6 +30,7 @@ bool ClsHookTouchhle::getIdentification(cl_game_identifier_t *identifier)
     identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
     strncpy(identifier->product, test_bundle.identifier, sizeof(identifier->product));
     strncpy(identifier->version, test_bundle.version, sizeof(identifier->version));
+    strncpy(identifier->filename, test_bundle.identifier, sizeof(identifier->product));
 
     return true;
   }
@@ -47,12 +48,17 @@ bool ClsHookTouchhle::init(void)
    */
   static const cls_find_memory_region_t fmr =
   {
+  #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     .host_offset=0x40,
+  #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    .host_offset=0x10,
+  #endif
     .host_size=0x100001000,
     .guest_base=0,
     .guest_size=0x40000000,
     .endianness=CL_ENDIAN_LITTLE,
-    .pointer_size=4
+    .pointer_size=4,
+    .title="iOS Current Process Address Space"
   };
 
   return ClsHook::init() && initViaMemoryRegions(fmr);

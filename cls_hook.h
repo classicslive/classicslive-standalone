@@ -95,7 +95,7 @@ const cls_window_preset_t cls_window_presets[] =
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "SDL_app", "",
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
-    "todo",
+    "^touchHLE$",
 #endif
     "touchHLE"
   },
