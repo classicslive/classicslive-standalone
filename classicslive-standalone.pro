@@ -22,6 +22,7 @@ INCLUDEPATH += \
 SOURCES += \
   cls_hook_dolphin.cpp \
   cls_hook_infuse.cpp \
+  cls_hook_kemulator.cpp \
   cls_hook_ryujinx.cpp \
   cls_hook_touchhle.cpp \
   cls_hook_yuzu.cpp \
@@ -105,6 +106,7 @@ HEADERS += \
   cls_hook_cemu.h \
   cls_hook_dolphin.h \
   cls_hook_infuse.h \
+  cls_hook_kemulator.h \
   cls_hook_ryujinx.h \
   cls_hook_touchhle.h \
   cls_hook_yuzu.h \

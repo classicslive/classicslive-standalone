@@ -14,6 +14,7 @@
 #include "cls_hook_cemu.h"
 #include "cls_hook_dolphin.h"
 #include "cls_hook_infuse.h"
+#include "cls_hook_kemulator.h"
 #include "cls_hook_ryujinx.h"
 #include "cls_hook_touchhle.h"
 #include "cls_hook_yuzu.h"
@@ -231,6 +232,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
     return std::make_unique<ClsHookDolphin>(pid, nullptr, window);
   case CLS_HOOK_INFUSE:
     return std::make_unique<ClsHookInfuse>(pid, nullptr, window);
+  case CLS_HOOK_KEMULATOR:
+    return std::make_unique<ClsHookKemulator>(pid, nullptr, window);
   case CLS_HOOK_RYUJINX:
     return std::make_unique<ClsHookRyujinx>(pid, nullptr, window);
   case CLS_HOOK_TOUCHHLE:

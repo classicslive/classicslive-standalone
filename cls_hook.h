@@ -24,6 +24,7 @@ typedef enum
   CLS_HOOK_CEMU,
   CLS_HOOK_DOLPHIN,
   CLS_HOOK_INFUSE,
+  CLS_HOOK_KEMULATOR,
   CLS_HOOK_RYUJINX,
   CLS_HOOK_TOUCHHLE,
   CLS_HOOK_YUZU,
@@ -108,6 +109,16 @@ const cls_window_preset_t cls_window_presets[] =
     "^Infuse$",
 #endif
     "Infuse"
+  },
+
+  {
+    CLS_HOOK_KEMULATOR,
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    "java", "^KEm.*",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^java$",
+#endif
+    "KEmulator"
   },
 
   {
