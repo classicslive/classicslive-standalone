@@ -33,7 +33,7 @@ bool ClsHookKemulator::init(void)
   region.flags.bits.read = 1;
   region.flags.bits.write = 1;
   region.pointer_length = 4;
-  region.size = 0x200000;
+  region.size = 0x2000000;
   strncpy(region.title, "Java Objects", sizeof(region.title));
 
   m_MemoryRegions[0] = region;
