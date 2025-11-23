@@ -70,11 +70,14 @@ bool ClsHook::init(void)
   return true;
 }
 
-cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr)
+unsigned ClsHook::findRegions(cl_memory_region_t *buffer, const unsigned buffer_count,
+                              const cls_find_memory_region_t fvmr)
 {
-  cl_memory_region_t region;
+  unsigned found = 0;
 
-  memset(&region, 0, sizeof(region));
+  if (!buffer || buffer_count == 0)
+    return 0;
+
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   MEMORY_BASIC_INFORMATION memory;
   char *addr = nullptr;
@@ -84,11 +87,20 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
   {
     if (memory.RegionSize == fvmr.size && memory.Protect == PAGE_READWRITE)
     {
-      region.base_alloc = memory.AllocationBase;
-      region.base_host = reinterpret_cast<unsigned char*>(memory.BaseAddress) + fvmr.offset;
-      region.size = memory.RegionSize;
+      if (found < buffer_count)
+      {
+        cl_memory_region_t &region = buffer[found++];
 
-      return region;
+        region.base_alloc = memory.AllocationBase;
+        region.base_host = reinterpret_cast<unsigned char*>(memory.BaseAddress) + fvmr.offset;
+        region.size = memory.RegionSize;
+
+        region.flags.bits.read = 1;
+        region.flags.bits.write = 1;
+        region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
+        region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
+        snprintf(region.title, sizeof(region.title), "%s", fvmr.title ? fvmr.title : "Memory region");
+      }
     }
     addr += memory.RegionSize;
   }
@@ -97,58 +109,62 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
   char map_path[256];
   FILE *map_file = nullptr;
   uintptr_t addr_start, addr_end, size;
+  char flags[5];
 
   if (!m_ProcessId)
-    return region;
+    return 0;
+
   snprintf(map_path, sizeof(map_path), "/proc/%d/maps", m_ProcessId);
   map_file = fopen(map_path, "r");
   if (!map_file)
-    return region;
+    return 0;
 
   while (fgets(line, sizeof(line), map_file))
   {
-    if (sscanf(line, "%lx-%lx", &addr_start, &addr_end) == 2)
+    if (sscanf(line, "%lx-%lx %4s", &addr_start, &addr_end, flags) == 3)
     {
       size = addr_end - addr_start;
-      if (size == fvmr.host_size)
+
+      if (size == fvmr.host_size && ((flags[3] == 's') == fvmr.shared))
       {
-        /* host fields */
-        region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.host_offset;
-        region.base_alloc = reinterpret_cast<void*>(addr_start);
+        if (found < buffer_count)
+        {
+          cl_memory_region_t &region = buffer[found++];
 
-        /* guest fields */
-        region.base_guest = fvmr.guest_base;
-        region.size = fvmr.guest_size;
+          /* host fields */
+          region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.host_offset;
+          region.base_alloc = reinterpret_cast<void*>(addr_start);
 
-        /* status fields */
-        region.flags.bits.read = 1;
-        region.flags.bits.write = 1;
+          /* guest fields */
+          region.base_guest = fvmr.guest_base;
+          region.size = fvmr.guest_size;
 
-        /* miscellaneous fields */
-        region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
-        region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
-        snprintf(region.title, sizeof(region.title), "%s", fvmr.title ? fvmr.title : "Memory region");
+          /* status fields */
+          region.flags.bits.read = 1;
+          region.flags.bits.write = 1;
 
-        fclose(map_file);
-
-        return region;
+          /* misc fields */
+          region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
+          region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
+          snprintf(region.title, sizeof(region.title), "%s", fvmr.title ? fvmr.title : "Memory region");
+        }
       }
     }
   }
   fclose(map_file);
 #endif
 
-  return region;
+  return found;
 }
+
 
 bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 {
-  cl_memory_region_t region = findMemoryRegion(fvmr);
+  unsigned found = findRegions(m_MemoryRegions, 1, fvmr);
 
-  if (region.size && region.base_host)
+  if (found)
   {
-    m_MemoryRegions[m_MemoryRegionCount] = region;
-    m_MemoryRegionCount++;
+    m_MemoryRegionCount = 1;
     return true;
   }
   else

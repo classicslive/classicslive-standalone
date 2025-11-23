@@ -17,6 +17,7 @@
 #include "cls_hook_kemulator.h"
 #include "cls_hook_ryujinx.h"
 #include "cls_hook_touchhle.h"
+#include "cls_hook_xemu.h"
 #include "cls_hook_yuzu.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
@@ -238,6 +239,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
     return std::make_unique<ClsHookRyujinx>(pid, nullptr, window);
   case CLS_HOOK_TOUCHHLE:
     return std::make_unique<ClsHookTouchhle>(pid, nullptr, window);
+  case CLS_HOOK_XEMU:
+    return std::make_unique<ClsHookXemu>(pid, nullptr, window);
   case CLS_HOOK_YUZU:
     return std::make_unique<ClsHookYuzu>(pid, nullptr, window);
   default:

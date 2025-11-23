@@ -27,6 +27,7 @@ typedef enum
   CLS_HOOK_KEMULATOR,
   CLS_HOOK_RYUJINX,
   CLS_HOOK_TOUCHHLE,
+  CLS_HOOK_XEMU,
   CLS_HOOK_YUZU,
 
   CLS_HOOK_SIZE
@@ -66,6 +67,9 @@ typedef struct
   unsigned pointer_size;
 
   const char *title;
+
+  /* Whether or not the region uses shared mapping. If false, it's private */
+  bool shared;
 } cls_find_memory_region_t;
 
 const cls_window_preset_t cls_window_presets[] =
@@ -119,6 +123,16 @@ const cls_window_preset_t cls_window_presets[] =
     "^java$",
 #endif
     "KEmulator"
+  },
+
+  {
+    CLS_HOOK_XEMU,
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    "", "^xemu.*",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^AppRun$",
+#endif
+    "xemu"
   },
 
   {
@@ -202,9 +216,9 @@ public:
    */
   virtual bool getWindowTitle(char *buffer, unsigned buffer_len);
 
-  cl_memory_region_t findMemoryRegion(const cls_find_memory_region_t fvmr);
-
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
+
+  unsigned findRegions(cl_memory_region_t *buffer, const unsigned buffer_count, const cls_find_memory_region_t fvmr);
 
   cl_memory_region_t *regions(void) { return m_MemoryRegions; }
 

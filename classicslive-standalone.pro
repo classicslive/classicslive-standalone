@@ -23,6 +23,7 @@ SOURCES += \
   cls_hook_kemulator.cpp \
   cls_hook_ryujinx.cpp \
   cls_hook_touchhle.cpp \
+  cls_hook_xemu.cpp \
   cls_hook_yuzu.cpp \
   cls_process_select.cpp \
   cl_frontend.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
   cls_hook_kemulator.h \
   cls_hook_ryujinx.h \
   cls_hook_touchhle.h \
+  cls_hook_xemu.h \
   cls_hook_yuzu.h \
   cls_identification_methods.h \
   cls_main.h \
