@@ -1,7 +1,7 @@
 #include <QString>
 #include <QStringList>
 
-#include "cls_hook_yuzu.h"
+#include "yuzu.h"
 
 static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {

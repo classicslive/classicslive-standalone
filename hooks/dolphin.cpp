@@ -1,4 +1,4 @@
-#include "cls_hook_dolphin.h"
+#include "dolphin.h"
 
 bool ClsHookDolphin::getIdentification(cl_game_identifier_t *identifier)
 {

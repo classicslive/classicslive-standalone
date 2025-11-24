@@ -1,4 +1,4 @@
-#include "cls_hook_xemu.h"
+#include "xemu.h"
 
 bool ClsHookXemu::getIdentification(cl_game_identifier_t *identifier)
 {

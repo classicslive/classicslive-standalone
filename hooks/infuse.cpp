@@ -1,4 +1,4 @@
-#include "cls_hook_infuse.h"
+#include "infuse.h"
 
 #include <QInputDialog>
 

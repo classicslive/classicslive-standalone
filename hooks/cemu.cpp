@@ -1,7 +1,7 @@
 #include <QRegularExpression>
 #include <QString>
 
-#include "cls_hook_cemu.h"
+#include "cemu.h"
 
 static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 {
