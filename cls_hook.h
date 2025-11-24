@@ -225,6 +225,14 @@ public:
   unsigned regionCount(void) { return m_MemoryRegionCount; }
 
 protected:
+
+  /**
+   * Launches a file picker dialogue asking the user to choose which content
+   * file they are using.
+   * @param identifier The identifier struct to enter a filename into
+   * @return Whether the identifier info was entered
+   */
+  bool getIdentificationViaFile(cl_game_identifier_t *identifier);
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
   cl_memory_region_t m_MemoryRegions[16];

@@ -1,15 +1,8 @@
 #include "cls_hook_xemu.h"
 
-#include <string.h>
-
 bool ClsHookXemu::getIdentification(cl_game_identifier_t *identifier)
 {
-  identifier->type = CL_GAMEIDENTIFIER_PRODUCT_CODE;
-  strncpy(identifier->product, "j2me_test", sizeof(identifier->product));
-  strncpy(identifier->version, "1", sizeof(identifier->version));
-  strncpy(identifier->filename, "j2me_test", sizeof(identifier->product));
-
-  return true;
+  return getIdentificationViaFile(identifier);
 }
 
 bool ClsHookXemu::init(void)
@@ -42,6 +35,7 @@ bool ClsHookXemu::init(void)
         deadbeef == 0xdeadbeef)
       return ClsHook::init();
   }
+  m_MemoryRegionCount = 0;
 
   return false;
 }

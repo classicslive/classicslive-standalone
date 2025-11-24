@@ -157,6 +157,33 @@ unsigned ClsHook::findRegions(cl_memory_region_t *buffer, const unsigned buffer_
   return found;
 }
 
+bool ClsHook::getIdentificationViaFile(cl_game_identifier_t *identifier)
+{
+  if (!identifier)
+    return false;
+  else
+  {
+    QString file = QFileDialog::getOpenFileName(
+      nullptr,
+      QString("%1 - Select content file").arg(getLibrary()),
+      QString(),
+      "All Files (*.*)"
+    );
+
+    if (file.isEmpty())
+      return false;
+    else
+    {
+      QByteArray utf8 = file.toUtf8();
+
+      identifier->type = CL_GAMEIDENTIFIER_FILE_HASH;
+      snprintf(identifier->filename, sizeof(identifier->filename), "%s",
+               utf8.constData());
+
+      return true;
+    }
+  }
+}
 
 bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 {
