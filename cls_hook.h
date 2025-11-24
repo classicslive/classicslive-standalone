@@ -170,6 +170,7 @@ public:
    * @see cl_frontend.h / cl_fe_memory_read
    */
   virtual size_t read(void* dest, cl_addr_t address, size_t size);
+  virtual size_t read(void *dest, const cl_memory_region_t *region, cl_addr_t offset, size_t size);
   virtual size_t write(const void* src, cl_addr_t address, size_t size);
 
   /**
@@ -216,15 +217,20 @@ public:
    */
   virtual bool getWindowTitle(char *buffer, unsigned buffer_len);
 
-  bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
-
-  unsigned findRegions(cl_memory_region_t *buffer, const unsigned buffer_count, const cls_find_memory_region_t fvmr);
-
   cl_memory_region_t *regions(void) { return m_MemoryRegions; }
 
   unsigned regionCount(void) { return m_MemoryRegionCount; }
 
 protected:
+  /**
+   * Finds memory regions matching the specified parameters.
+   * @param buffer A buffer of regions to write into
+   * @param buffer_count The maximum number of regions the buffer can hold
+   * @param fvmr The parameters by which to find regions
+   * @return The number of regions found
+   */
+  unsigned findRegions(cl_memory_region_t *buffer, const unsigned buffer_count,
+                       const cls_find_memory_region_t fvmr);
 
   /**
    * Launches a file picker dialogue asking the user to choose which content
@@ -233,6 +239,17 @@ protected:
    * @return Whether the identifier info was entered
    */
   bool getIdentificationViaFile(cl_game_identifier_t *identifier);
+
+  bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
+
+  /**
+   * Translates a guest virtual address to a host virtual address by stepping
+   * through each registered memory region.
+   * @param address The guest virtual address
+   * @return The host virtual address
+   */
+  uintptr_t translate(cl_addr_t address);
+
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
   cl_memory_region_t m_MemoryRegions[16];

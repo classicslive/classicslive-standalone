@@ -1,3 +1,5 @@
+#include "cls_hook.h"
+
 #include <cstring>
 #include <wchar.h>
 
@@ -8,7 +10,8 @@
 #include <unistd.h>
 #endif
 
-#include "cls_hook.h"
+#include <QFileDialog>
+#include <QString>
 
 ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
 {
@@ -209,80 +212,143 @@ bool ClsHook::run(void)
 #endif
 }
 
+uintptr_t ClsHook::translate(cl_addr_t address)
+{
+  const cl_memory_region_t *region = nullptr;
+
+  for (unsigned i = 0; i < m_MemoryRegionCount; ++i)
+  {
+    const cl_memory_region_t &r = m_MemoryRegions[i];
+    if (address >= r.base_guest &&
+      address <  r.base_guest + r.size)
+    {
+      region = &r;
+      break;
+    }
+  }
+
+  if (!region)
+    return 0;
+  else
+    return reinterpret_cast<uintptr_t>(region->base_host) +
+      (address - region->base_guest);
+}
+
 size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
 {
+  address = translate(address);
+  if (!address)
+    return 0;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  size_t read = 0;
+  size_t bytes_read = 0;
 
-  ReadProcessMemory(m_Handle,
-                    reinterpret_cast<LPCVOID>(m_MemoryData + address),
-                    dest, size, &read);
+  ReadProcessMemory(
+    m_Handle,
+    reinterpret_cast<LPCVOID>(address),
+    dest,
+    size,
+    &bytes_read
+  );
 
-  return read;
+  return bytes_read;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
-  ssize_t read = 0;
 
   local_iov.iov_base = dest;
-  local_iov.iov_len = size;
+  local_iov.iov_len  = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(
-    reinterpret_cast<cl_addr_t>(m_MemoryRegions[0].base_host) +
-    address -
-    m_MemoryRegions[0].base_guest);
-  remote_iov.iov_len = size;
+  remote_iov.iov_base = reinterpret_cast<void*>(address);
+  remote_iov.iov_len  = size;
 
-  read = process_vm_readv(m_ProcessId, &local_iov, 1,
-                          &remote_iov, 1, 0);
+  ssize_t bytes_read = process_vm_readv(
+    m_ProcessId,
+    &local_iov, 1,
+    &remote_iov, 1,
+    0
+  );
 
-  if (read < 0)
-    return 0;
-  else
-    return static_cast<size_t>(read);
+  return (bytes_read > 0) ? static_cast<size_t>(bytes_read) : 0;
 #else
   return 0;
 #endif
 }
 
-size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
+size_t ClsHook::read(void *dest, const cl_memory_region_t *region, cl_addr_t offset, size_t size)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  size_t written = 0;
+  size_t bytes_read = 0;
 
-  WriteProcessMemory
-  (
+  ReadProcessMemory(
     m_Handle,
-    reinterpret_cast<void*>(m_MemoryData + address),
-    src,
+    reinterpret_cast<LPCVOID>(region->base_host + address),
+    dest,
     size,
-    &written
+    &bytes_read
   );
 
-  return written;
+  return bytes_read;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
-  ssize_t written = 0;
 
-  local_iov.iov_base = const_cast<void*>(src);
-  local_iov.iov_len = size;
+  local_iov.iov_base = dest;
+  local_iov.iov_len  = size;
 
   remote_iov.iov_base = reinterpret_cast<void*>(
-    reinterpret_cast<cl_addr_t>(m_MemoryRegions[0].base_host) +
-    address -
-    m_MemoryRegions[0].base_guest);
-  remote_iov.iov_len = size;
+    reinterpret_cast<char*>(region->base_host) + offset);
+  remote_iov.iov_len  = size;
 
-  written = process_vm_writev(m_ProcessId, &local_iov, 1,
-                              &remote_iov, 1, 0);
+  ssize_t bytes_read = process_vm_readv(
+    m_ProcessId,
+    &local_iov, 1,
+    &remote_iov, 1,
+    0
+  );
 
-  if (written < 0)
-    return 0;
-  else
-    return static_cast<size_t>(written);
+  return (bytes_read > 0) ? static_cast<size_t>(bytes_read) : 0;
 #else
-  return false;
+  return 0;
+#endif
+}
+
+size_t ClsHook::write(const void *src, cl_addr_t address, size_t size)
+{
+  address = translate(address);
+  if (!address)
+    return 0;
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+  size_t bytes_written = 0;
+
+  WriteProcessMemory(
+    m_Handle,
+    reinterpret_cast<LPVOID>(address),
+    src,
+    size,
+    &bytes_written
+  );
+
+  return bytes_written;
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  struct iovec local_iov;
+  struct iovec remote_iov;
+
+  local_iov.iov_base = const_cast<void *>(src);
+  local_iov.iov_len  = size;
+
+  remote_iov.iov_base = reinterpret_cast<void*>(address);
+  remote_iov.iov_len  = size;
+
+  ssize_t bytes_written = process_vm_writev(
+    m_ProcessId,
+    &local_iov, 1,
+    &remote_iov, 1,
+    0
+  );
+
+  return (bytes_written > 0) ? static_cast<size_t>(bytes_written) : 0;
+#else
+  return 0;
 #endif
 }
 
