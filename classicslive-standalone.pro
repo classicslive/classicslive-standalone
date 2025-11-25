@@ -18,6 +18,7 @@ DEFINES += \
 include(classicslive-integration/classicslive-integration.pri)
 
 SOURCES += \
+  cls_login_dialog.cpp \
   cls_process_select.cpp \
   cl_frontend.cpp \
   cls_hook.cpp \
@@ -34,6 +35,7 @@ SOURCES += \
 
 HEADERS += \
   cls_hook.h \
+  cls_login_dialog.h \
   cls_main.h \
   cls_network_manager.h \
   cls_process_select.h \

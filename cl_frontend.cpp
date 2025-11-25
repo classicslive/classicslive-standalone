@@ -19,6 +19,7 @@
 #include "hooks/touchhle.h"
 #include "hooks/xemu.h"
 #include "hooks/yuzu.h"
+#include "cls_login_dialog.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
 #include "cls_process_select.h"
@@ -155,12 +156,30 @@ void cl_fe_thread(cl_task_t *cl_task)
 
 bool cl_fe_user_data(cl_user_t *user, unsigned index)
 {
+  ClsLoginDialog login(nullptr);
+  QString username, password;
   CL_UNUSED(index);
-  snprintf(user->username, sizeof(user->username), "%s", "jacory");
-  snprintf(user->password, sizeof(user->password), "%s", "jacory");
-  snprintf(user->language, sizeof(user->language), "%s", "en_US");
 
-  return true;
+  if (!user)
+    return false;
+
+  memset(user, 0, sizeof(*user));
+  login.exec();
+  username = login.username();
+  password = login.password();
+
+  if (username.isEmpty() || password.isEmpty())
+    return false;
+  else
+  {
+    snprintf(user->username, sizeof(user->username), "%s",
+             username.toStdString().c_str());
+    snprintf(user->password, sizeof(user->password), "%s",
+             password.toStdString().c_str());
+    snprintf(user->language, sizeof(user->language), "%s", "en_US");
+
+    return true;
+  }
 }
 
 ClsMain::ClsMain(void)
