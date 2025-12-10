@@ -53,7 +53,10 @@ typedef struct
    */
   cl_addr_t host_offset;
 
-  /* The size of the target memory region in host memory */
+  /**
+   * The exact size of the target memory region in host memory.
+   * Use this if the exact region size is known.
+   */
   cl_addr_t host_size;
 
   /* The base virtual address of this region in guest memory */
