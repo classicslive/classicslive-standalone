@@ -27,6 +27,7 @@ typedef enum
   CLS_HOOK_KEMULATOR,
   CLS_HOOK_RYUJINX,
   CLS_HOOK_TOUCHHLE,
+  CLS_HOOK_VITA3K,
   CLS_HOOK_XEMU,
   CLS_HOOK_YUZU,
 
@@ -126,6 +127,16 @@ const cls_window_preset_t cls_window_presets[] =
     "^java$",
 #endif
     "KEmulator"
+  },
+
+  {
+    CLS_HOOK_VITA3K,
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    "", "^Vita3K.*",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^Vita3K$",
+#endif
+    "Vita3K"
   },
 
   {

@@ -30,6 +30,7 @@ SOURCES += \
   hooks/kemulator.cpp \
   hooks/ryujinx.cpp \
   hooks/touchhle.cpp \
+  hooks/vita3k.cpp \
   hooks/xemu.cpp \
   hooks/yuzu.cpp
 
@@ -46,5 +47,6 @@ HEADERS += \
   hooks/kemulator.h \
   hooks/ryujinx.h \
   hooks/touchhle.h \
+  hooks/vita3k.h \
   hooks/xemu.h \
   hooks/yuzu.h

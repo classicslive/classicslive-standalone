@@ -17,6 +17,7 @@
 #include "hooks/kemulator.h"
 #include "hooks/ryujinx.h"
 #include "hooks/touchhle.h"
+#include "hooks/vita3k.h"
 #include "hooks/xemu.h"
 #include "hooks/yuzu.h"
 #include "cls_login_dialog.h"
@@ -258,6 +259,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
     return std::make_unique<ClsHookRyujinx>(pid, nullptr, window);
   case CLS_HOOK_TOUCHHLE:
     return std::make_unique<ClsHookTouchhle>(pid, nullptr, window);
+  case CLS_HOOK_VITA3K:
+    return std::make_unique<ClsHookVita3k>(pid, nullptr, window);
   case CLS_HOOK_XEMU:
     return std::make_unique<ClsHookXemu>(pid, nullptr, window);
   case CLS_HOOK_YUZU:
