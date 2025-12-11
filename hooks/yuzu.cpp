@@ -67,7 +67,7 @@ bool ClsHookYuzu::init(void)
     .host_offset=0,
     .host_size=0x100000000,
     .guest_base=0,
-    .guest_size=0xC0000000,
+    .guest_size=CL_GB(3),
     .endianness=CL_ENDIAN_LITTLE,
     .pointer_size=4
   };

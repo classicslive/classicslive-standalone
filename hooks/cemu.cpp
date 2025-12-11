@@ -109,7 +109,7 @@ bool ClsHookCemu::init()
     .host_offset=0x0E000000,
     .host_size=0x4E000000,
     .guest_base=0x10000000,
-    .guest_size=0x40000000,
+    .guest_size=CL_GB(1),
     .endianness=CL_ENDIAN_BIG,
     .pointer_size=4,
     .title = "CafeOS Foreground App"

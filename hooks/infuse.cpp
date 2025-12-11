@@ -132,7 +132,7 @@ bool ClsHookInfuse::init(void)
 #endif
     .host_size=0xA001000,
     .guest_base=0,
-    .guest_size=0xA000000,
+    .guest_size=CL_MB(128 + 32),
     .endianness=CL_ENDIAN_LITTLE,
     .pointer_size=4,
     .title = "128MB + 32MB DDR SDRAM"

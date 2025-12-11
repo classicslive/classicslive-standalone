@@ -32,7 +32,7 @@ bool ClsHookVita3k::init(void)
   m_MemoryRegions[0].base_guest = 0x81000000;
   m_MemoryRegions[0].endianness = CL_ENDIAN_LITTLE;
   m_MemoryRegions[0].pointer_length = 4;
-  m_MemoryRegions[0].size = 512 * 1024 * 1024 - 0x1000000;
+  m_MemoryRegions[0].size = CL_MB(512) - 0x1000000;
   m_MemoryRegionCount = 1;
 
   return ClsHook::init();
