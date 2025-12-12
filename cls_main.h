@@ -18,6 +18,8 @@ public slots:
   void selected(uint pid, void *window);
 
 private:
+  void closeEvent(QCloseEvent *event) override;
+
   QTimer *m_Timer = nullptr;
   ClsProcessSelect *m_ProcessSelect = nullptr;
 };

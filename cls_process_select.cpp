@@ -150,6 +150,9 @@ int ClsProcessSelect::refresh(void)
 
   /* Refresh the processes list */
   cmd_file = popen(cmd, "r");
+  if (!cmd_file)
+    return 0;
+
   while (i < CLS_PROCESS_MAX && fgets(line, sizeof(line), cmd_file))
   {
     cls_process_t process;
@@ -170,6 +173,7 @@ int ClsProcessSelect::refresh(void)
       }
     }
   }
+  pclose(cmd_file);
   m_ProcessCount = i;
 #endif
 

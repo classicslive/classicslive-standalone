@@ -17,17 +17,26 @@ extern "C"
 #include <tlhelp32.h>
 #endif
 
-enum cls_hook_method_t
+typedef enum
 {
-  HOOK_METHOD_BASIC = 0,
+  CLS_HOOK_GENERIC = 0,
 
-  HOOK_METHOD_CEMU,
+  CLS_HOOK_CEMU,
+  CLS_HOOK_DOLPHIN,
+  CLS_HOOK_INFUSE,
+  CLS_HOOK_KEMULATOR,
+  CLS_HOOK_RYUJINX,
+  CLS_HOOK_TOUCHHLE,
+  CLS_HOOK_VITA3K,
+  CLS_HOOK_XEMU,
+  CLS_HOOK_YUZU,
 
-  HOOK_METHOD_SIZE
-};
+  CLS_HOOK_SIZE
+} cls_hook_type;
 
 struct cls_window_preset_t
 {
+  cls_hook_type type;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   const char *window_class;
   const char *window_title;
@@ -39,16 +48,38 @@ struct cls_window_preset_t
 
 typedef struct
 {
-  /* The size of the target memory region */
-  uint64_t size;
+  /**
+   * The amount to offset the base in host memory after finding region of
+   * specified size
+   */
+  cl_addr_t host_offset;
 
-  /* The amount to offset the base after finding region of specified size */
-  uint64_t offset;
+  /**
+   * The exact size of the target memory region in host memory.
+   * Use this if the exact region size is known.
+   */
+  cl_addr_t host_size;
+
+  /* The base virtual address of this region in guest memory */
+  cl_addr_t guest_base;
+
+  /* The size of the target memory region in guest memory */
+  cl_addr_t guest_size;
+
+  cl_endianness endianness;
+
+  unsigned pointer_size;
+
+  const char *title;
+
+  /* Whether or not the region uses shared mapping. If false, it's private */
+  bool shared;
 } cls_find_memory_region_t;
 
 const cls_window_preset_t cls_window_presets[] =
 {
   {
+    CLS_HOOK_CEMU,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "^wxWindowNR$",
     "^Cemu [1-9].*",
@@ -59,6 +90,7 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
+    CLS_HOOK_RYUJINX,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "gdkWindowToplevel", "",
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
@@ -68,15 +100,17 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
+    CLS_HOOK_TOUCHHLE,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "SDL_app", "",
-#elif defined (__linux__)
-    "todo",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^touchHLE$",
 #endif
     "touchHLE"
   },
 
   {
+    CLS_HOOK_INFUSE,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     "GLFW30", "^Infuse .*",
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
@@ -86,6 +120,37 @@ const cls_window_preset_t cls_window_presets[] =
   },
 
   {
+    CLS_HOOK_KEMULATOR,
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    "java", "^KEm.*",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^java$",
+#endif
+    "KEmulator"
+  },
+
+  {
+    CLS_HOOK_VITA3K,
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    "", "^Vita3K.*",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^Vita3K$",
+#endif
+    "Vita3K"
+  },
+
+  {
+    CLS_HOOK_XEMU,
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+    "", "^xemu.*",
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+    "^AppRun$",
+#endif
+    "xemu"
+  },
+
+  {
+    CLS_HOOK_GENERIC,
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
     nullptr, nullptr,
 #else
@@ -109,10 +174,6 @@ public:
 
   cl_memory_t* memory(void) { return m_Memory; }
 
-  virtual uintptr_t memoryData(void) { return m_MemoryData; }
-
-  virtual uint64_t memorySize(void) { return m_MemorySize; }
-
   /**
    * Extracts a number of bytes from an address in external process memory
    * into a provided buffer.
@@ -123,6 +184,7 @@ public:
    * @see cl_frontend.h / cl_fe_memory_read
    */
   virtual size_t read(void* dest, cl_addr_t address, size_t size);
+  virtual size_t read(void *dest, const cl_memory_region_t *region, cl_addr_t offset, size_t size);
   virtual size_t write(const void* src, cl_addr_t address, size_t size);
 
   /**
@@ -138,11 +200,10 @@ public:
    * @param size The size of the data
    * @return Whether or not identification info could be retrieved
    */
-  virtual bool getIdentification(uint8_t **data, unsigned *size)
+  virtual bool getIdentification(cl_game_identifier_t *identifier)
   {
-    *data = nullptr;
-    *size = 0;
-
+    if (identifier)
+      identifier->type = CL_GAMEIDENTIFIER_INVALID;
     return false;
   }
 
@@ -170,15 +231,43 @@ public:
    */
   virtual bool getWindowTitle(char *buffer, unsigned buffer_len);
 
-  cl_memory_region_t findMemoryRegion(const cls_find_memory_region_t fvmr);
+  cl_memory_region_t *regions(void) { return m_MemoryRegions; }
+
+  unsigned regionCount(void) { return m_MemoryRegionCount; }
+
+protected:
+  /**
+   * Finds memory regions matching the specified parameters.
+   * @param buffer A buffer of regions to write into
+   * @param buffer_count The maximum number of regions the buffer can hold
+   * @param fvmr The parameters by which to find regions
+   * @return The number of regions found
+   */
+  unsigned findRegions(cl_memory_region_t *buffer, const unsigned buffer_count,
+                       const cls_find_memory_region_t fvmr);
+
+  /**
+   * Launches a file picker dialogue asking the user to choose which content
+   * file they are using.
+   * @param identifier The identifier struct to enter a filename into
+   * @return Whether the identifier info was entered
+   */
+  bool getIdentificationViaFile(cl_game_identifier_t *identifier);
 
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
 
-protected:
+  /**
+   * Translates a guest virtual address to a host virtual address by stepping
+   * through each registered memory region.
+   * @param address The guest virtual address
+   * @return The host virtual address
+   */
+  uintptr_t translate(cl_addr_t address);
+
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
-  uintptr_t m_MemoryData = 0;
-  uint64_t m_MemorySize = 0;
+  cl_memory_region_t m_MemoryRegions[16];
+  unsigned m_MemoryRegionCount = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS

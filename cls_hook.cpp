@@ -1,13 +1,17 @@
+#include "cls_hook.h"
+
 #include <cstring>
 #include <wchar.h>
 
 #ifdef __linux__
 #include <signal.h>
+#include <stdio.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #endif
 
-#include "cls_hook.h"
+#include <QFileDialog>
+#include <QString>
 
 ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
 {
@@ -15,6 +19,8 @@ ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
   m_Preset = preset;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   m_Window = reinterpret_cast<HWND>(window);
+#else
+  CL_UNUSED(window);
 #endif
 }
 
@@ -67,11 +73,14 @@ bool ClsHook::init(void)
   return true;
 }
 
-cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr)
+unsigned ClsHook::findRegions(cl_memory_region_t *buffer, const unsigned buffer_count,
+                              const cls_find_memory_region_t fvmr)
 {
-  cl_memory_region_t region;
+  unsigned found = 0;
 
-  memset(&region, 0, sizeof(region));
+  if (!buffer || buffer_count == 0)
+    return 0;
+
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   MEMORY_BASIC_INFORMATION memory;
   char *addr = nullptr;
@@ -81,11 +90,20 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
   {
     if (memory.RegionSize == fvmr.size && memory.Protect == PAGE_READWRITE)
     {
-      region.base_alloc = memory.AllocationBase;
-      region.base_host = reinterpret_cast<unsigned char*>(memory.BaseAddress) + fvmr.offset;
-      region.size = memory.RegionSize;
+      if (found < buffer_count)
+      {
+        cl_memory_region_t &region = buffer[found++];
 
-      return region;
+        region.base_alloc = memory.AllocationBase;
+        region.base_host = reinterpret_cast<unsigned char*>(memory.BaseAddress) + fvmr.offset;
+        region.size = memory.RegionSize;
+
+        region.flags.bits.read = 1;
+        region.flags.bits.write = 1;
+        region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
+        region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
+        snprintf(region.title, sizeof(region.title), "%s", fvmr.title ? fvmr.title : "Memory region");
+      }
     }
     addr += memory.RegionSize;
   }
@@ -94,41 +112,89 @@ cl_memory_region_t ClsHook::findMemoryRegion(const cls_find_memory_region_t fvmr
   char map_path[256];
   FILE *map_file = nullptr;
   uintptr_t addr_start, addr_end, size;
+  char flags[5];
 
   if (!m_ProcessId)
-    return region;
+    return 0;
+
   snprintf(map_path, sizeof(map_path), "/proc/%d/maps", m_ProcessId);
   map_file = fopen(map_path, "r");
   if (!map_file)
-    return region;
+    return 0;
 
   while (fgets(line, sizeof(line), map_file))
   {
-    if (sscanf(line, "%lx-%lx", &addr_start, &addr_end) == 2)
+    if (sscanf(line, "%lx-%lx %4s", &addr_start, &addr_end, flags) == 3)
     {
       size = addr_end - addr_start;
-      if (size == fvmr.size)
-      {
-        region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.offset;
-        region.size = size;
-        fclose(map_file);
 
-        return region;
+      if (size == fvmr.host_size && ((flags[3] == 's') == fvmr.shared))
+      {
+        if (found < buffer_count)
+        {
+          cl_memory_region_t &region = buffer[found++];
+
+          /* host fields */
+          region.base_host = reinterpret_cast<uint8_t*>(addr_start) + fvmr.host_offset;
+          region.base_alloc = reinterpret_cast<void*>(addr_start);
+
+          /* guest fields */
+          region.base_guest = fvmr.guest_base;
+          region.size = fvmr.guest_size;
+
+          /* status fields */
+          region.flags.bits.read = 1;
+          region.flags.bits.write = 1;
+
+          /* misc fields */
+          region.endianness = fvmr.endianness ? fvmr.endianness : CL_ENDIAN_NATIVE;
+          region.pointer_length = fvmr.pointer_size ? fvmr.pointer_size : 4;
+          snprintf(region.title, sizeof(region.title), "%s", fvmr.title ? fvmr.title : "Memory region");
+        }
       }
     }
   }
   fclose(map_file);
 #endif
-  return region;
+
+  return found;
+}
+
+bool ClsHook::getIdentificationViaFile(cl_game_identifier_t *identifier)
+{
+  if (!identifier)
+    return false;
+  else
+  {
+    QString file = QFileDialog::getOpenFileName(
+      nullptr,
+      QString("%1 - Select content file").arg(getLibrary()),
+      QString(),
+      "All Files (*.*)"
+    );
+
+    if (file.isEmpty())
+      return false;
+    else
+    {
+      QByteArray utf8 = file.toUtf8();
+
+      identifier->type = CL_GAMEIDENTIFIER_FILE_HASH;
+      snprintf(identifier->filename, sizeof(identifier->filename), "%s",
+               utf8.constData());
+
+      return true;
+    }
+  }
 }
 
 bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 {
-  cl_memory_region_t region = findMemoryRegion(fvmr);
+  unsigned found = findRegions(m_MemoryRegions, 1, fvmr);
 
-  if (region.size && region.base_host)
+  if (found)
   {
-    m_MemoryData = reinterpret_cast<uintptr_t>(region.base_host);
+    m_MemoryRegionCount = 1;
     return true;
   }
   else
@@ -146,74 +212,143 @@ bool ClsHook::run(void)
 #endif
 }
 
+uintptr_t ClsHook::translate(cl_addr_t address)
+{
+  const cl_memory_region_t *region = nullptr;
+
+  for (unsigned i = 0; i < m_MemoryRegionCount; ++i)
+  {
+    const cl_memory_region_t &r = m_MemoryRegions[i];
+    if (address >= r.base_guest &&
+      address <  r.base_guest + r.size)
+    {
+      region = &r;
+      break;
+    }
+  }
+
+  if (!region)
+    return 0;
+  else
+    return reinterpret_cast<uintptr_t>(region->base_host) +
+      (address - region->base_guest);
+}
+
 size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
 {
+  address = translate(address);
+  if (!address)
+    return 0;
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  size_t read = 0;
+  size_t bytes_read = 0;
 
-  ReadProcessMemory(m_Handle,
-                    reinterpret_cast<LPCVOID>(m_MemoryData + address),
-                    dest, size, &read);
+  ReadProcessMemory(
+    m_Handle,
+    reinterpret_cast<LPCVOID>(address),
+    dest,
+    size,
+    &bytes_read
+  );
 
-  return read;
+  return bytes_read;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
-  ssize_t read = 0;
 
   local_iov.iov_base = dest;
-  local_iov.iov_len = size;
+  local_iov.iov_len  = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
-  remote_iov.iov_len = size;
+  remote_iov.iov_base = reinterpret_cast<void*>(address);
+  remote_iov.iov_len  = size;
 
-  read = process_vm_readv(m_ProcessId, &local_iov, 1,
-                          &remote_iov, 1, 0);
+  ssize_t bytes_read = process_vm_readv(
+    m_ProcessId,
+    &local_iov, 1,
+    &remote_iov, 1,
+    0
+  );
 
-  if (read < 0)
-    return 0;
-  else
-    return static_cast<size_t>(read);
+  return (bytes_read > 0) ? static_cast<size_t>(bytes_read) : 0;
 #else
   return 0;
 #endif
 }
 
-size_t ClsHook::write(const void* src, cl_addr_t address, size_t size)
+size_t ClsHook::read(void *dest, const cl_memory_region_t *region, cl_addr_t offset, size_t size)
 {
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
-  size_t written = 0;
+  size_t bytes_read = 0;
 
-  WriteProcessMemory
-  (
+  ReadProcessMemory(
     m_Handle,
-    reinterpret_cast<void*>(m_MemoryData + address),
-    src,
+    reinterpret_cast<LPCVOID>(region->base_host + address),
+    dest,
     size,
-    &written
+    &bytes_read
   );
 
-  return written;
+  return bytes_read;
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
-  ssize_t written = 0;
 
-  local_iov.iov_base = const_cast<void*>(src);
-  local_iov.iov_len = size;
+  local_iov.iov_base = dest;
+  local_iov.iov_len  = size;
 
-  remote_iov.iov_base = reinterpret_cast<void*>(m_MemoryData + address);
-  remote_iov.iov_len = size;
+  remote_iov.iov_base = reinterpret_cast<void*>(
+    reinterpret_cast<char*>(region->base_host) + offset);
+  remote_iov.iov_len  = size;
 
-  written = process_vm_writev(m_ProcessId, &local_iov, 1,
-                              &remote_iov, 1, 0);
+  ssize_t bytes_read = process_vm_readv(
+    m_ProcessId,
+    &local_iov, 1,
+    &remote_iov, 1,
+    0
+  );
 
-  if (written < 0)
-    return 0;
-  else
-    return static_cast<size_t>(written);
+  return (bytes_read > 0) ? static_cast<size_t>(bytes_read) : 0;
 #else
-  return false;
+  return 0;
+#endif
+}
+
+size_t ClsHook::write(const void *src, cl_addr_t address, size_t size)
+{
+  address = translate(address);
+  if (!address)
+    return 0;
+#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+  size_t bytes_written = 0;
+
+  WriteProcessMemory(
+    m_Handle,
+    reinterpret_cast<LPVOID>(address),
+    src,
+    size,
+    &bytes_written
+  );
+
+  return bytes_written;
+#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  struct iovec local_iov;
+  struct iovec remote_iov;
+
+  local_iov.iov_base = const_cast<void *>(src);
+  local_iov.iov_len  = size;
+
+  remote_iov.iov_base = reinterpret_cast<void*>(address);
+  remote_iov.iov_len  = size;
+
+  ssize_t bytes_written = process_vm_writev(
+    m_ProcessId,
+    &local_iov, 1,
+    &remote_iov, 1,
+    0
+  );
+
+  return (bytes_written > 0) ? static_cast<size_t>(bytes_written) : 0;
+#else
+  return 0;
 #endif
 }
 
@@ -235,7 +370,7 @@ bool ClsHook::deepCopy(cl_search_t *search)
     else
       success &= read(
         reinterpret_cast<uint8_t*>(sbank->region->base_host) + sbank->first_valid,
-        sbank->first_valid,
+        sbank->region->base_guest + sbank->first_valid,
         sbank->last_valid - sbank->first_valid + search->params.size
       ) != 0;
   }
@@ -266,27 +401,37 @@ bool ClsHook::getWindowTitle(char *buffer, unsigned buffer_len)
 #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
   return GetWindowTextA(m_Window, buffer, static_cast<int>(buffer_len));
 #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  if (!buffer || buffer_len == 0)
+    return false;
+
+  buffer[0] = '\0';
+
   char cmd[256];
   char line[1024];
 
-  snprintf(cmd, sizeof(cmd), "wmctrl -lp | awk -v pid=%u '$3 == pid'",
-           m_ProcessId);
-  FILE *cmd_file = popen(cmd, "r");
+  snprintf(cmd, sizeof(cmd),
+           "wmctrl -lp | awk -v pid=%u '$3 == pid'", m_ProcessId);
 
-  if (cmd_file == nullptr)
+  FILE *cmd_file = popen(cmd, "r");
+  if (!cmd_file)
     return false;
 
   bool found = false;
+
   while (fgets(line, sizeof(line), cmd_file))
   {
-    if (sscanf(line, "%*s %*d %*d %*s %[^\n]", buffer) == 1)
+    char title[1024];
+
+    if (sscanf(line, "%*s %*d %*d %*s %[^\n]", title) == 1)
     {
+      strncpy(buffer, title, buffer_len - 1);
+      buffer[buffer_len - 1] = '\0';
       found = true;
       break;
     }
   }
-  pclose(cmd_file);
 
+  pclose(cmd_file);
   return found;
 #else
   return false;
