@@ -1,15 +1,3 @@
-#include <QApplication>
-#include <QCloseEvent>
-#include <QFileDialog>
-#include <QMainWindow>
-#include <QMessageBox>
-#include <QTimer>
-
-#include <fstream>
-#include <regex>
-#include <sstream>
-#include <string>
-
 #include "cls_hook.h"
 #include "hooks/cemu.h"
 #include "hooks/dolphin.h"
@@ -28,16 +16,28 @@
 
 extern "C"
 {
+  #include <cl_abi.h>
   #include <cl_common.h>
   #include <cl_main.h>
   #include <cl_memory.h>
 }
-#include <cl_frontend.h>
+
+#include <QApplication>
+#include <QCloseEvent>
+#include <QFileDialog>
+#include <QMainWindow>
+#include <QMessageBox>
+#include <QTimer>
+
+#include <fstream>
+#include <regex>
+#include <sstream>
+#include <string>
 
 static std::vector<std::unique_ptr<ClsHook>> hooks;
 static ClsNetworkManager network_manager;
 
-void cl_fe_display_message(unsigned level, const char *msg)
+static cl_error cls_abi_display_message(unsigned level, const char *msg)
 {
   QMessageBox msg_box;
 
@@ -58,130 +58,170 @@ void cl_fe_display_message(unsigned level, const char *msg)
     msg_box.setIcon(QMessageBox::Question);
   }
   msg_box.exec();
+
+  return CL_OK;
 }
 
-bool cl_fe_install_membanks(void)
+static cl_error cls_abi_install_membanks(void)
 {
   if (hooks.size() != 1)
-    return false;
+    return CL_ERR_PARAMETER_INVALID;
   else
   {
     memory.region_count = hooks[0]->regionCount();
-    memory.regions = reinterpret_cast<cl_memory_region_t*>(malloc(sizeof(cl_memory_region_t) * memory.region_count));
-    memcpy(memory.regions, hooks[0]->regions(), sizeof(cl_memory_region_t) * memory.region_count);
+    memory.regions = reinterpret_cast<cl_memory_region_t*>(
+      malloc(sizeof(cl_memory_region_t) * memory.region_count));
+    memcpy(memory.regions, hooks[0]->regions(),
+           sizeof(cl_memory_region_t) * memory.region_count);
 
-    return true;
+    return CL_OK;
   }
 }
 
-const char* cl_fe_library_name(void)
+static cl_error cls_abi_library_name(const char **name)
 {
-  if (hooks.size() == 1)
-    return hooks[0]->getLibrary();
-  else
-    return nullptr;
-}
-
-unsigned cl_fe_memory_read(cl_memory_t *mem, void *dest, cl_addr_t address,
-  unsigned size)
-{
-  CL_UNUSED(mem);
   if (hooks.size() != 1)
-    return false;
+    return CL_ERR_PARAMETER_INVALID;
   else
   {
-    unsigned read = hooks[0]->read(dest, address, size);
-
-    if (read && size <= 8)
-      return cl_read(dest,
-                     reinterpret_cast<uint8_t*>(dest),
-                     0,
-                     size,
-                     memory.regions[0].endianness);
-    else
-      return read;
+    *name = hooks[0]->getLibrary();
+    return *name ? CL_OK : CL_ERR_PARAMETER_NULL;
   }
 }
 
-unsigned cl_fe_memory_write(cl_memory_t *mem, const void *src, cl_addr_t address,
-  unsigned size)
+static cl_error cls_abi_read(void *dest, cl_addr_t address,
+                           unsigned size, unsigned *read)
 {
-  CL_UNUSED(mem);
   if (hooks.size() != 1)
-    return false;
+    return CL_ERR_PARAMETER_INVALID;
+  else
+  {
+    *read = hooks[0]->read(dest, address, size);
+
+    if (read && size <= 8)
+      cl_read(dest,
+              reinterpret_cast<uint8_t*>(dest),
+              0,
+              size,
+              memory.regions[0].endianness);
+
+    return CL_OK;
+  }
+}
+
+static cl_error cls_abi_write(const void *src, cl_addr_t address,
+  unsigned size, unsigned *written)
+{
+  if (hooks.size() != 1)
+    return CL_ERR_PARAMETER_INVALID;
   else
   {
     if (size <= 8)
     {
       int64_t temp = 0;
-      cl_read(&temp, reinterpret_cast<const uint8_t*>(src), 0, size, memory.regions[0].endianness);
-
-      return hooks[0]->write(&temp, address, size);
+      cl_read(&temp,
+              reinterpret_cast<const uint8_t*>(src),
+              0,
+              size,
+              memory.regions[0].endianness);
+      *written = hooks[0]->write(&temp, address, size);
     }
     else
-      return hooks[0]->write(src, address, size);
+      *written = hooks[0]->write(src, address, size);
+
+    return CL_OK;
   }
 }
 
-bool cl_fe_search_deep_copy(cl_search_t *search)
+static cl_error cls_abi_network_post(const char *url, char *data,
+  cl_network_cb_t callback, void *userdata)
 {
-  if (hooks.size() != 1)
-    return false;
-  return hooks[0]->deepCopy(search);
-}
-
-void cl_fe_pause(void)
-{
-  if (hooks.size() == 1)
-    hooks[0]->pause();
-}
-
-void cl_fe_unpause(void)
-{
-  if (hooks.size() == 1)
-    hooks[0]->unpause();
-}
-
-void cl_fe_network_post(const char *url, char *data, cl_network_cb_t callback,
-                        void *userdata)
-{
-  cls_net_cb cb = { callback, userdata };
-  emit network_manager.request(url, data, cb);
-}
-
-void cl_fe_thread(cl_task_t *cl_task)
-{
-  auto *thread = new ClsThread(cl_task);
-  thread->start();
-}
-
-bool cl_fe_user_data(cl_user_t *user, unsigned index)
-{
-  ClsLoginDialog login(nullptr);
-  QString username, password;
-  CL_UNUSED(index);
-
-  if (!user)
-    return false;
-
-  memset(user, 0, sizeof(*user));
-  login.exec();
-  username = login.username();
-  password = login.password();
-
-  if (username.isEmpty() || password.isEmpty())
-    return false;
+  if (!url || !data)
+    return CL_ERR_PARAMETER_NULL;
   else
   {
-    snprintf(user->username, sizeof(user->username), "%s",
-             username.toStdString().c_str());
-    snprintf(user->password, sizeof(user->password), "%s",
-             password.toStdString().c_str());
-    snprintf(user->language, sizeof(user->language), "%s", "en_US");
+    cls_net_cb cb = { callback, userdata };
+    emit network_manager.request(url, data, cb);
+  }
 
-    return true;
+  return CL_OK;
+}
+
+static cl_error cls_abi_set_pause(unsigned mode)
+{
+  if (hooks.size() != 1)
+    return CL_ERR_PARAMETER_INVALID;
+  else
+  {
+    if (mode)
+      return hooks[0]->pause() ? CL_OK : CL_ERR_PARAMETER_INVALID;
+    else
+      return hooks[0]->unpause() ? CL_OK : CL_ERR_PARAMETER_INVALID;
   }
 }
+
+static cl_error cls_abi_thread(cl_task_t *task)
+{
+  if (!task)
+    return CL_ERR_PARAMETER_NULL;
+  else
+  {
+    auto *thread = new ClsThread(task);
+    thread->start();
+  }
+
+  return CL_OK;
+}
+
+static cl_error cls_abi_user_data(cl_user_t *user, unsigned index)
+{
+  if (!user)
+    return CL_ERR_PARAMETER_NULL;
+  else
+  {
+    ClsLoginDialog login(nullptr);
+    QString username, password;
+    CL_UNUSED(index);
+
+    memset(user, 0, sizeof(*user));
+    login.exec();
+    username = login.username();
+    password = login.password();
+
+    if (username.isEmpty() || password.isEmpty())
+      return CL_ERR_USER_CONFIG;
+    else
+    {
+      snprintf(user->username, sizeof(user->username), "%s",
+               username.toStdString().c_str());
+      snprintf(user->password, sizeof(user->password), "%s",
+               password.toStdString().c_str());
+      snprintf(user->language, sizeof(user->language), "%s", "en_US");
+
+      return CL_OK;
+    }
+  }
+}
+
+const cl_abi_t cls_abi
+{
+  CL_ABI_VERSION,
+  {
+    {
+      cls_abi_display_message,
+      cls_abi_install_membanks,
+      cls_abi_library_name,
+      cls_abi_network_post,
+      cls_abi_set_pause,
+      cls_abi_thread,
+      cls_abi_user_data
+    },
+    {
+      cls_abi_read,
+      cls_abi_write
+    }
+  }
+};
 
 ClsMain::ClsMain(void)
 {
@@ -289,6 +329,8 @@ int main(int argc, char *argv[])
 
   ClsMain clsmain;
   clsmain.show();
+
+  cl_abi_register(&cls_abi);
 
   return a.exec();
 }

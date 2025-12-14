@@ -1,15 +1,14 @@
-#include <QJsonArray>
-#include <QNetworkReply>
-
-#include <cl_frontend.h>
-
 extern "C"
 {
+  #include <cl_abi.h>
   #include <cl_common.h>
   #include <cl_json.h>
 }
 
 #include "cls_network_manager.h"
+
+#include <QJsonArray>
+#include <QNetworkReply>
 
 ClsNetworkManager::ClsNetworkManager()
 {
@@ -37,14 +36,16 @@ void ClsNetworkManager::onFinished(QNetworkReply *reply)
     {
       char reason[2048];
 
-      if (cl_json_get(reason, response.data, CL_JSON_KEY_REASON, CL_JSON_TYPE_STRING, sizeof(reason)))
-        cl_fe_display_message(CL_MSG_ERROR, reason);
+      if (cl_json_get(reason, response.data, CL_JSON_KEY_REASON,
+                      CL_JSON_TYPE_STRING, sizeof(reason)))
+        cl_abi_display_message(CL_MSG_ERROR, reason);
       else
-        cl_fe_display_message(CL_MSG_ERROR, "Request failed with no given reason.");
+        cl_abi_display_message(CL_MSG_ERROR, "Request failed with no given reason.");
     }
   }
   else
-    cl_fe_display_message(CL_MSG_ERROR, reply->errorString().toStdString().c_str());
+    cl_abi_display_message(CL_MSG_ERROR,
+                           reply->errorString().toStdString().c_str());
 
   if (cb.function)
     cb.function(response, cb.userdata);

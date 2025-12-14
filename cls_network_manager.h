@@ -1,9 +1,9 @@
 #ifndef CLS_NETWORK_MANAGER_H
 #define CLS_NETWORK_MANAGER_H
 
-#include <QNetworkAccessManager>
+#include <cl_abi.h>
 
-#include <cl_frontend.h>
+#include <QNetworkAccessManager>
 
 typedef struct
 {

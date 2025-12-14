@@ -1,12 +1,12 @@
 #ifndef CLS_THREAD_H
 #define CLS_THREAD_H
 
-#include <QThread>
-
 extern "C"
 {
-  #include <cl_frontend.h>
+  #include <cl_abi.h>
 }
+
+#include <QThread>
 
 class ClsThread : public QThread
 {
