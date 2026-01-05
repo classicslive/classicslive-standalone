@@ -42,7 +42,7 @@ void ClsProcessSelect::onHookButtonClicked(void)
     unsigned pid = item_pid->text().toUInt(&ok, 10);
 
     /* Retrieve the window handle (Windows only) */
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     QTableWidgetItem *item_win = m_Table->item(row, CLS_COLUMN_WINDOW);
     HWND window = nullptr;
     if (item_win)
@@ -59,7 +59,7 @@ void ClsProcessSelect::onHookButtonClicked(void)
   }
 }
 
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
 typedef struct
 {
   cls_process_t *processes;
@@ -118,12 +118,12 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
 int ClsProcessSelect::refresh(void)
 {
   int i = 0;
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   cls_windows_cb_t processes = { m_Processes, &m_ProcessCount };
 
   m_ProcessCount = 0;
   EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&processes));
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   /**
    * Enumerate all processes Compactly, with no Header, and only for current
    * User. Sort by CPU usage.
@@ -189,7 +189,7 @@ int ClsProcessSelect::refresh(void)
       new QTableWidgetItem(QString::number(m_Processes[i].cpu, 'f', 1)));
     m_Table->setItem(i, CLS_COLUMN_MEMORY,
       new QTableWidgetItem(QString::number(m_Processes[i].memory)));
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     m_Table->setItem(i, CLS_COLUMN_WINDOW,
       new QTableWidgetItem(QString::asprintf("%p", reinterpret_cast<void*>(m_Processes[i].window))));
 #endif

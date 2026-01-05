@@ -15,9 +15,9 @@ bool ClsHookTouchhle::init(void)
    */
   static const cls_find_memory_region_t fmr =
   {
-  #if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+  #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     .host_offset=0x40,
-  #elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+  #elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     .host_offset=0x10,
   #endif
     .host_size=0x100001000,

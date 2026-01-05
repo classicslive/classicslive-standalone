@@ -13,14 +13,14 @@ extern "C"
 
 #define CLS_PROCESS_MAX 256
 
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
 #define CLS_COLUMN_TITLE 0
 #define CLS_COLUMN_PID 1
 #define CLS_COLUMN_CPU 2
 #define CLS_COLUMN_MEMORY 3
 #define CLS_COLUMN_WINDOW 4
 #define CLS_COLUMN_SIZE 5
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
 #define CLS_COLUMN_TITLE 0
 #define CLS_COLUMN_PID 1
 #define CLS_COLUMN_CPU 2
@@ -30,13 +30,13 @@ extern "C"
 
 typedef struct
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   char title[256];
   unsigned long pid;
   double cpu;
   unsigned long long memory;
   HWND window;
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   char title[256];
   pid_t pid;
   float cpu;

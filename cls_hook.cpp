@@ -17,7 +17,7 @@ ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
 {
   m_ProcessId = pid;
   m_Preset = preset;
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   m_Window = reinterpret_cast<HWND>(window);
 #else
   CL_UNUSED(window);
@@ -30,7 +30,7 @@ ClsHook::~ClsHook()
 
 bool ClsHook::init(void)
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   /* Get process handle with read and write permissions */
   m_Handle = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE |
                          PROCESS_VM_OPERATION, FALSE, m_ProcessId);
@@ -81,7 +81,7 @@ unsigned ClsHook::findRegions(cl_memory_region_t *buffer, const unsigned buffer_
   if (!buffer || buffer_count == 0)
     return 0;
 
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   MEMORY_BASIC_INFORMATION memory;
   char *addr = nullptr;
 
@@ -107,7 +107,7 @@ unsigned ClsHook::findRegions(cl_memory_region_t *buffer, const unsigned buffer_
     }
     addr += memory.RegionSize;
   }
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   char line[256];
   char map_path[256];
   FILE *map_file = nullptr;
@@ -203,9 +203,9 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 
 bool ClsHook::run(void)
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   return IsWindow(m_Window);
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   char proc[32];
   snprintf(proc, sizeof(proc), "/proc/%u", m_ProcessId);
   return (access(proc, F_OK) == 0);
@@ -239,7 +239,7 @@ size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
   address = translate(address);
   if (!address)
     return 0;
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   size_t bytes_read = 0;
 
   ReadProcessMemory(
@@ -251,7 +251,7 @@ size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
   );
 
   return bytes_read;
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
 
@@ -276,7 +276,7 @@ size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
 
 size_t ClsHook::read(void *dest, const cl_memory_region_t *region, cl_addr_t offset, size_t size)
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   size_t bytes_read = 0;
 
   ReadProcessMemory(
@@ -288,7 +288,7 @@ size_t ClsHook::read(void *dest, const cl_memory_region_t *region, cl_addr_t off
   );
 
   return bytes_read;
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
 
@@ -317,7 +317,7 @@ size_t ClsHook::write(const void *src, cl_addr_t address, size_t size)
   address = translate(address);
   if (!address)
     return 0;
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   size_t bytes_written = 0;
 
   WriteProcessMemory(
@@ -329,11 +329,11 @@ size_t ClsHook::write(const void *src, cl_addr_t address, size_t size)
   );
 
   return bytes_written;
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   struct iovec local_iov;
   struct iovec remote_iov;
 
-  local_iov.iov_base = const_cast<void *>(src);
+  local_iov.iov_base = const_cast<void*>(src);
   local_iov.iov_len  = size;
 
   remote_iov.iov_base = reinterpret_cast<void*>(address);
@@ -348,59 +348,37 @@ size_t ClsHook::write(const void *src, cl_addr_t address, size_t size)
 
   return (bytes_written > 0) ? static_cast<size_t>(bytes_written) : 0;
 #else
-  return 0;
+#error "Unhandled platform"
 #endif
-}
-
-bool ClsHook::deepCopy(cl_search_t *search)
-{
-  bool success = true;
-
-  if (!search)
-    return false;
-  for (unsigned i = 0; i < search->searchbank_count; i++)
-  {
-    auto sbank = &search->searchbanks[i];
-
-    if (!sbank->region->base_host)
-    {
-      success = false;
-      continue;
-    }
-    else
-      success &= read(
-        reinterpret_cast<uint8_t*>(sbank->region->base_host) + sbank->first_valid,
-        sbank->region->base_guest + sbank->first_valid,
-        sbank->last_valid - sbank->first_valid + search->params.size
-      ) != 0;
-  }
-
-  return success;
 }
 
 bool ClsHook::pause(void)
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   return DebugActiveProcess(m_ProcessId);
-#else
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   return kill(m_ProcessId, SIGSTOP) == 0;
+#else
+#error "Unhandled platform"
 #endif
 }
 
 bool ClsHook::unpause(void)
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   return DebugActiveProcessStop(m_ProcessId);
-#else
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   return kill(m_ProcessId, SIGCONT) == 0;
+#else
+#error "Unhandled platform"
 #endif
 }
 
 bool ClsHook::getWindowTitle(char *buffer, unsigned buffer_len)
 {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   return GetWindowTextA(m_Window, buffer, static_cast<int>(buffer_len));
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   if (!buffer || buffer_len == 0)
     return false;
 

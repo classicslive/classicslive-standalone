@@ -62,17 +62,18 @@ static cl_error cls_abi_display_message(unsigned level, const char *msg)
   return CL_OK;
 }
 
-static cl_error cls_abi_install_membanks(void)
+static cl_error cls_abi_install_memory_regions(cl_memory_region_t **regions,
+  unsigned *region_count)
 {
   if (hooks.size() != 1)
     return CL_ERR_PARAMETER_INVALID;
   else
   {
-    memory.region_count = hooks[0]->regionCount();
-    memory.regions = reinterpret_cast<cl_memory_region_t*>(
-      malloc(sizeof(cl_memory_region_t) * memory.region_count));
-    memcpy(memory.regions, hooks[0]->regions(),
-           sizeof(cl_memory_region_t) * memory.region_count);
+    *region_count = hooks[0]->regionCount();
+    *regions = reinterpret_cast<cl_memory_region_t*>(
+      malloc(sizeof(cl_memory_region_t) * *region_count));
+    memcpy(*regions, hooks[0]->regions(),
+           sizeof(cl_memory_region_t) * *region_count);
 
     return CL_OK;
   }
@@ -89,46 +90,59 @@ static cl_error cls_abi_library_name(const char **name)
   }
 }
 
-static cl_error cls_abi_read(void *dest, cl_addr_t address,
-                           unsigned size, unsigned *read)
+static cl_error cls_abi_read_buffer(void *dest, cl_addr_t address,
+  unsigned size, unsigned *read)
 {
   if (hooks.size() != 1)
     return CL_ERR_PARAMETER_INVALID;
   else
   {
-    *read = hooks[0]->read(dest, address, size);
+    unsigned mread = hooks[0]->read(dest, address, size);
 
-    if (read && size <= 8)
-      cl_read(dest,
-              reinterpret_cast<uint8_t*>(dest),
-              0,
-              size,
-              memory.regions[0].endianness);
+    if (read)
+      *read = mread;
 
     return CL_OK;
   }
 }
 
-static cl_error cls_abi_write(const void *src, cl_addr_t address,
+static cl_error cls_abi_read_value(void *dest, cl_addr_t address,
+  cl_value_type type)
+{
+  if (hooks.size() != 1)
+    return CL_ERR_PARAMETER_INVALID;
+  else
+  {
+    hooks[0]->read(dest, address, cl_sizeof_memtype(type));
+    return cl_read_value(dest, dest, 0, type, hooks[0]->regions()[0].endianness);
+  }
+}
+
+static cl_error cls_abi_write_buffer(const void *src, cl_addr_t address,
   unsigned size, unsigned *written)
 {
   if (hooks.size() != 1)
     return CL_ERR_PARAMETER_INVALID;
   else
   {
-    if (size <= 8)
-    {
-      int64_t temp = 0;
-      cl_read(&temp,
-              reinterpret_cast<const uint8_t*>(src),
-              0,
-              size,
-              memory.regions[0].endianness);
-      *written = hooks[0]->write(&temp, address, size);
-    }
-    else
-      *written = hooks[0]->write(src, address, size);
+    unsigned mwritten = hooks[0]->write(src, address, size);
 
+    if (written)
+      *written = mwritten;
+
+    return CL_OK;
+  }
+}
+
+static cl_error cls_abi_write_value(const void *src, cl_addr_t address,
+  cl_value_type type)
+{
+  if (hooks.size() != 1)
+    return CL_ERR_PARAMETER_INVALID;
+  else
+  {
+    cl_read_value(const_cast<void*>(src), src, 0, type, hooks[0]->regions()[0].endianness);
+    hooks[0]->write(src, address, cl_sizeof_memtype(type));
     return CL_OK;
   }
 }
@@ -209,7 +223,7 @@ const cl_abi_t cls_abi
   {
     {
       cls_abi_display_message,
-      cls_abi_install_membanks,
+      cls_abi_install_memory_regions,
       cls_abi_library_name,
       cls_abi_network_post,
       cls_abi_set_pause,
@@ -217,8 +231,10 @@ const cl_abi_t cls_abi
       cls_abi_user_data
     },
     {
-      cls_abi_read,
-      cls_abi_write
+      cls_abi_read_buffer,
+      cls_abi_read_value,
+      cls_abi_write_buffer,
+      cls_abi_write_value
     }
   }
 };
@@ -271,11 +287,11 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
 
   for (const auto& preset : cls_window_presets)
   {
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     if (preset.window_class &&
         std::regex_match(getWindowClassName(window), std::regex(preset.window_class)) &&
         std::regex_match(getWindowTitle(window), std::regex(preset.window_title)))
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     if (preset.process_title &&
         std::regex_match(getProcessTitle(pid), std::regex(preset.process_title)))
 #endif

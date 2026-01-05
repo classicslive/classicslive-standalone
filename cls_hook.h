@@ -9,7 +9,7 @@ extern "C"
   #include <cl_search.h>
 }
 
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
 #include <windows.h>
 #include <winternl.h>
 #include <psapi.h>
@@ -37,10 +37,10 @@ typedef enum
 struct cls_window_preset_t
 {
   cls_hook_type type;
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   const char *window_class;
   const char *window_title;
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   const char *process_title;
 #endif
   const char *title;
@@ -80,10 +80,10 @@ const cls_window_preset_t cls_window_presets[] =
 {
   {
     CLS_HOOK_CEMU,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "^wxWindowNR$",
     "^Cemu [1-9].*",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "^cemu$",
 #endif
     "Cemu"
@@ -91,9 +91,9 @@ const cls_window_preset_t cls_window_presets[] =
 
   {
     CLS_HOOK_RYUJINX,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "gdkWindowToplevel", "",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "todo",
 #endif
     "Ryujinx"
@@ -101,9 +101,9 @@ const cls_window_preset_t cls_window_presets[] =
 
   {
     CLS_HOOK_TOUCHHLE,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "SDL_app", "",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "^touchHLE$",
 #endif
     "touchHLE"
@@ -111,9 +111,9 @@ const cls_window_preset_t cls_window_presets[] =
 
   {
     CLS_HOOK_INFUSE,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "GLFW30", "^Infuse .*",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "^Infuse$",
 #endif
     "Infuse"
@@ -121,9 +121,9 @@ const cls_window_preset_t cls_window_presets[] =
 
   {
     CLS_HOOK_KEMULATOR,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "java", "^KEm.*",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "^java$",
 #endif
     "KEmulator"
@@ -131,19 +131,29 @@ const cls_window_preset_t cls_window_presets[] =
 
   {
     CLS_HOOK_VITA3K,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "", "^Vita3K.*",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "^Vita3K$",
 #endif
     "Vita3K"
   },
 
   {
+    CLS_HOOK_YUZU,
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+    "", "^Eden |.*",
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+    "^eden$",
+#endif
+    "eden"
+  },
+
+  {
     CLS_HOOK_XEMU,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     "", "^xemu.*",
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
     "^AppRun$",
 #endif
     "xemu"
@@ -151,7 +161,7 @@ const cls_window_preset_t cls_window_presets[] =
 
   {
     CLS_HOOK_GENERIC,
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
     nullptr, nullptr,
 #else
     nullptr,
@@ -186,12 +196,6 @@ public:
   virtual size_t read(void* dest, cl_addr_t address, size_t size);
   virtual size_t read(void *dest, const cl_memory_region_t *region, cl_addr_t offset, size_t size);
   virtual size_t write(const void* src, cl_addr_t address, size_t size);
-
-  /**
-   * Extracts as much memory as needed from the host for a search step.
-   * @return Whether or not the copy succeeded.
-   */
-  virtual bool deepCopy(cl_search_t *search);
 
   /**
    * Returns a buffer of data to be hashed to be provided as game
@@ -270,11 +274,11 @@ protected:
   unsigned m_MemoryRegionCount = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
-#if CL_HOST_PLATFORM == CL_PLATFORM_WINDOWS
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   HWND m_Window = nullptr;
   HANDLE m_Handle = nullptr;
   DWORD m_ProcessId = 0;
-#elif CL_HOST_PLATFORM == CL_PLATFORM_LINUX
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
   pid_t m_ProcessId;
 #endif
 };

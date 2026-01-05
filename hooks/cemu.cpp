@@ -20,7 +20,7 @@ static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
 
   // Extract "00000-00000"
   QString titleSegment = str.mid(titleStart, titleEnd - titleStart + 1);
-  QRegularExpression reTitle(R"(TitleId:\s*([0-9A-Fa-f]+)-([0-9A-Fa-f]+))");
+  static const QRegularExpression reTitle(R"(TitleId:\s*([0-9A-Fa-f]+)-([0-9A-Fa-f]+))");
   QRegularExpressionMatch m = reTitle.match(titleSegment);
   if (!m.hasMatch())
     return false;
@@ -68,7 +68,7 @@ static bool get_title_id(cl_game_identifier_t *identifier, const QString &str)
                                 versionClose - versionOpen - 1);
 
   // Match "v16" or region + v16
-  QRegularExpression reVer(R"(v(\d+))");
+  static const QRegularExpression reVer(R"(v(\d+))");
   QRegularExpressionMatch mv = reVer.match(versionPart);
   if (!mv.hasMatch())
     return false;
