@@ -13,7 +13,8 @@ DEFINES += \
   GIT_VERSION=\\\"$$GIT_VERSION\\\" \
   CL_EXTERNAL_MEMORY=1 \
   CL_HAVE_EDITOR=1 \
-  CL_HAVE_FILESYSTEM=1
+  CL_HAVE_FILESYSTEM=1 \
+  CL_HAVE_SSL=0
 
 include(classicslive-integration/classicslive-integration.pri)
 
@@ -25,6 +26,7 @@ SOURCES += \
   cls_network_manager.cpp \
   cls_thread.cpp \
   hooks/cemu.cpp \
+  hooks/citra.cpp \
   hooks/dolphin.cpp \
   hooks/infuse.cpp \
   hooks/kemulator.cpp \
@@ -32,6 +34,7 @@ SOURCES += \
   hooks/touchhle.cpp \
   hooks/vita3k.cpp \
   hooks/xemu.cpp \
+  hooks/xenia.cpp \
   hooks/yuzu.cpp
 
 HEADERS += \
@@ -42,6 +45,7 @@ HEADERS += \
   cls_process_select.h \
   cls_thread.h \
   hooks/cemu.h \
+  hooks/citra.h \
   hooks/dolphin.h \
   hooks/infuse.h \
   hooks/kemulator.h \
@@ -49,4 +53,5 @@ HEADERS += \
   hooks/touchhle.h \
   hooks/vita3k.h \
   hooks/xemu.h \
+  hooks/xenia.h \
   hooks/yuzu.h

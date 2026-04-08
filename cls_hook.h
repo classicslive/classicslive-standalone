@@ -17,11 +17,15 @@ extern "C"
 #include <tlhelp32.h>
 #endif
 
+#include <stdint.h>
+#include <stdlib.h>
+
 typedef enum
 {
   CLS_HOOK_GENERIC = 0,
 
   CLS_HOOK_CEMU,
+  CLS_HOOK_CITRA,
   CLS_HOOK_DOLPHIN,
   CLS_HOOK_INFUSE,
   CLS_HOOK_KEMULATOR,
@@ -29,6 +33,7 @@ typedef enum
   CLS_HOOK_TOUCHHLE,
   CLS_HOOK_VITA3K,
   CLS_HOOK_XEMU,
+  CLS_HOOK_XENIA,
   CLS_HOOK_YUZU,
 
   CLS_HOOK_SIZE
@@ -157,6 +162,26 @@ const cls_window_preset_t cls_window_presets[] =
     "^AppRun$",
 #endif
     "xemu"
+  },
+
+  {
+    CLS_HOOK_XENIA,
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+    "", "^xenia.*",
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+  "^xenia.*$",
+#endif
+    "xenia"
+  },
+
+  {
+    CLS_HOOK_CITRA,
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+    "", "^Azahar.*",
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+    "^AppRun.wrapped$",
+#endif
+    "Azahar (AppImage)"
   },
 
   {

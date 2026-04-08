@@ -1,5 +1,6 @@
 #include "cls_hook.h"
 #include "hooks/cemu.h"
+#include "hooks/citra.h"
 #include "hooks/dolphin.h"
 #include "hooks/infuse.h"
 #include "hooks/kemulator.h"
@@ -7,6 +8,7 @@
 #include "hooks/touchhle.h"
 #include "hooks/vita3k.h"
 #include "hooks/xemu.h"
+#include "hooks/xenia.h"
 #include "hooks/yuzu.h"
 #include "cls_login_dialog.h"
 #include "cls_main.h"
@@ -305,6 +307,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
   {
   case CLS_HOOK_CEMU:
     return std::make_unique<ClsHookCemu>(pid, nullptr, window);
+  case CLS_HOOK_CITRA:
+    return std::make_unique<ClsHookCitra>(pid, nullptr, window);
   case CLS_HOOK_DOLPHIN:
     return std::make_unique<ClsHookDolphin>(pid, nullptr, window);
   case CLS_HOOK_INFUSE:
@@ -319,6 +323,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
     return std::make_unique<ClsHookVita3k>(pid, nullptr, window);
   case CLS_HOOK_XEMU:
     return std::make_unique<ClsHookXemu>(pid, nullptr, window);
+  case CLS_HOOK_XENIA:
+    return std::make_unique<ClsHookXenia>(pid, nullptr, window);
   case CLS_HOOK_YUZU:
     return std::make_unique<ClsHookYuzu>(pid, nullptr, window);
   default:
