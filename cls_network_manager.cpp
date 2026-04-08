@@ -30,14 +30,14 @@ void ClsNetworkManager::onFinished(QNetworkReply *reply)
   response.data = response_array.data();
 
   bool success;
-  if (cl_json_get(&success, response.data, CL_JSON_KEY_SUCCESS, CL_JSON_TYPE_BOOLEAN, sizeof(bool)))
+  if (cl_json_get(&success, response.data, CL_JSON_KEY_SUCCESS, CL_JSON_TYPE_BOOLEAN, sizeof(bool)) == CL_OK)
   {
     if (!success)
     {
       char reason[2048];
 
       if (cl_json_get(reason, response.data, CL_JSON_KEY_REASON,
-                      CL_JSON_TYPE_STRING, sizeof(reason)))
+                      CL_JSON_TYPE_STRING, sizeof(reason)) == CL_OK)
         cl_abi_display_message(CL_MSG_ERROR, reason);
       else
         cl_abi_display_message(CL_MSG_ERROR, "Request failed with no given reason.");
