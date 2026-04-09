@@ -286,6 +286,14 @@ protected:
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
 
   /**
+   * Finds the mapped host memory region containing a host virtual address.
+   * @param region A pointer to write the matching region into
+   * @param host_address The host address to query
+   * @return Whether a matching region was found
+   */
+  bool findRegionByHostAddress(cl_memory_region_t *region, uintptr_t host_address);
+
+  /**
    * Translates a guest virtual address to a host virtual address by stepping
    * through each registered memory region.
    * @param address The guest virtual address

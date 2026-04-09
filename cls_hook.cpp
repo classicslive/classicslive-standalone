@@ -201,6 +201,77 @@ bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
     return false;
 }
 
+bool ClsHook::findRegionByHostAddress(cl_memory_region_t *region,
+  uintptr_t host_address)
+{
+  if (!region || !host_address)
+    return false;
+
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+  MEMORY_BASIC_INFORMATION memory;
+
+  if (!VirtualQueryEx(m_Handle, reinterpret_cast<LPCVOID>(host_address),
+                      &memory, sizeof(memory)))
+    return false;
+
+  memset(region, 0, sizeof(*region));
+  region->base_alloc = memory.AllocationBase;
+  region->base_host = reinterpret_cast<void*>(memory.BaseAddress);
+  region->size = memory.RegionSize;
+  region->flags.bits.read = (memory.Protect != PAGE_NOACCESS);
+  region->flags.bits.write = (memory.Protect == PAGE_READWRITE ||
+                              memory.Protect == PAGE_EXECUTE_READWRITE);
+  region->endianness = CL_ENDIAN_NATIVE;
+  region->pointer_length = sizeof(void*);
+  snprintf(region->title, sizeof(region->title), "%s", "Mapped region");
+
+  return true;
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+  char line[256];
+  char map_path[256];
+  FILE *map_file = nullptr;
+  uintptr_t addr_start, addr_end;
+  char flags[5];
+
+  if (!m_ProcessId)
+    return false;
+
+  snprintf(map_path, sizeof(map_path), "/proc/%d/maps", m_ProcessId);
+  map_file = fopen(map_path, "r");
+  if (!map_file)
+    return false;
+
+  while (fgets(line, sizeof(line), map_file))
+  {
+    if (sscanf(line, "%lx-%lx %4s", &addr_start, &addr_end, flags) == 3)
+    {
+      if (host_address >= addr_start && host_address < addr_end)
+      {
+        memset(region, 0, sizeof(*region));
+        region->base_host = reinterpret_cast<void*>(addr_start);
+        region->base_alloc = reinterpret_cast<void*>(addr_start);
+        region->size = addr_end - addr_start;
+        region->flags.bits.read = (flags[0] == 'r');
+        region->flags.bits.write = (flags[1] == 'w');
+        region->endianness = CL_ENDIAN_NATIVE;
+        region->pointer_length = sizeof(void*);
+        snprintf(region->title, sizeof(region->title), "%s", "Mapped region");
+
+        fclose(map_file);
+        return true;
+      }
+    }
+  }
+
+  fclose(map_file);
+  return false;
+#else
+  CL_UNUSED(region);
+  CL_UNUSED(host_address);
+  return false;
+#endif
+}
+
 bool ClsHook::run(void)
 {
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
