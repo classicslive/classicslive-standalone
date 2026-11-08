@@ -49,6 +49,7 @@ HEADERS += \
   hooks/dolphin.h \
   hooks/infuse.h \
   hooks/kemulator.h \
+  hooks/horizon.h \
   hooks/ryujinx.h \
   hooks/touchhle.h \
   hooks/vita3k.h \

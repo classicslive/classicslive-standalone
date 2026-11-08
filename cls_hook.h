@@ -6,7 +6,6 @@ extern "C"
   #include <cl_common.h>
   #include <cl_identify.h>
   #include <cl_memory.h>
-  #include <cl_search.h>
 }
 
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
@@ -18,6 +17,10 @@ extern "C"
 #endif
 
 #include <stdint.h>
+
+#include <QString>
+
+class QRegularExpression;
 #include <stdlib.h>
 
 typedef enum
@@ -147,11 +150,11 @@ const cls_window_preset_t cls_window_presets[] =
   {
     CLS_HOOK_YUZU,
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
-    "", "^Eden |.*",
+    "", "^([Ee]den|[Ee]glantine|[Pp]oke[Dd]inner) \\|.*",
 #elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
-    "^eden$",
+    "^([Ee]den|[Ee]glantine|[Pp]oke[Dd]inner)$",
 #endif
-    "eden"
+    "Yuzu"
   },
 
   {
@@ -237,6 +240,13 @@ public:
   }
 
   /**
+   * Finds a file the hooked process has open whose path matches a pattern.
+   * @param pattern The pattern to match against each open file's path
+   * @return The path of the first match, or an empty string
+   */
+  QString findOpenFile(const QRegularExpression &pattern);
+
+  /**
    * @return The library name of the guest program
    */
   virtual const char *getLibrary(void) { return "unknown"; }
@@ -283,6 +293,16 @@ protected:
    */
   bool getIdentificationViaFile(cl_game_identifier_t *identifier);
 
+  /**
+   * Identifies the game by a content file the process has open, falling back
+   * to the file picker if no open file matches.
+   * @param identifier The identifier struct to enter a filename into
+   * @param pattern A pattern the content file's path must match
+   * @return Whether the identifier info was entered
+   */
+  bool getIdentificationViaOpenFile(cl_game_identifier_t *identifier,
+                                    const QRegularExpression &pattern);
+
   bool initViaMemoryRegions(const cls_find_memory_region_t fvmr);
 
   /**
@@ -301,9 +321,16 @@ protected:
    */
   uintptr_t translate(cl_addr_t address);
 
+  /**
+   * Reads from or writes to a host virtual address in the hooked process.
+   * @return The number of bytes successfully transferred
+   */
+  size_t readHost(void *dest, uintptr_t address, size_t size);
+  size_t writeHost(const void *src, uintptr_t address, size_t size);
+
   char m_ContentHash[32 + 1];
   cl_memory_t *m_Memory = nullptr;
-  cl_memory_region_t m_MemoryRegions[16];
+  cl_memory_region_t m_MemoryRegions[64];
   unsigned m_MemoryRegionCount = 0;
   const cls_window_preset_t *m_Preset = nullptr;
 
@@ -315,5 +342,13 @@ protected:
   pid_t m_ProcessId;
 #endif
 };
+
+/**
+ * Finds the preset for a supported program.
+ * @param pid The process ID, used to read the process title on Linux
+ * @param window The window handle, used to read the class and title on Windows
+ * @return The matching preset, or nullptr if the program is not supported
+ */
+const cls_window_preset_t *cls_find_preset(unsigned pid, void *window);
 
 #endif

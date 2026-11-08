@@ -1,6 +1,8 @@
 #ifndef CLS_PROCESS_SELECT_H
 #define CLS_PROCESS_SELECT_H
 
+#include <QElapsedTimer>
+#include <QHash>
 #include <QMainWindow>
 #include <QPushButton>
 #include <QTableWidget>
@@ -12,6 +14,8 @@ extern "C"
 };
 
 #define CLS_PROCESS_MAX 256
+
+struct cls_window_preset_t;
 
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
 #define CLS_COLUMN_TITLE 0
@@ -30,18 +34,25 @@ extern "C"
 
 typedef struct
 {
-#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   char title[256];
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   unsigned long pid;
-  double cpu;
-  unsigned long long memory;
   HWND window;
 #elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
-  char title[256];
   pid_t pid;
-  float cpu;
-  unsigned long memory;
 #endif
+
+  /* Total CPU time used over the process's lifetime, in seconds */
+  double cpu_time;
+
+  /* Share of all cores used since the last refresh, as a percentage */
+  double cpu;
+
+  /* Resident memory, in bytes */
+  unsigned long long memory;
+
+  /* The preset of a supported program, or nullptr */
+  const cls_window_preset_t *preset;
 } cls_process_t;
 
 class ClsProcessSelect : public QWidget
@@ -61,6 +72,10 @@ signals:
 private:
   cls_process_t m_Processes[CLS_PROCESS_MAX];
   int m_ProcessCount = 0;
+
+  /* CPU time of each process at the last refresh, to measure usage between */
+  QHash<qint64, double> m_LastCpuTime;
+  QElapsedTimer m_CpuTimer;
 
   QPushButton *m_HookButton = nullptr;
   QTableWidget *m_Table = nullptr;

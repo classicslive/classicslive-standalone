@@ -1,14 +1,25 @@
 #include "xenia.h"
 
+#include <QRegularExpression>
+
 #include <string.h>
 
 #define CLS_XENIA_INCLUDE_4K_HEAP 0
 #define CLS_XENIA_INCLUDE_STACK   0
-#define CLS_XENIA_INCLUDE_XEX     0
+#define CLS_XENIA_INCLUDE_XEX_64K 1
+#define CLS_XENIA_INCLUDE_XEX_4K  0
 
+/**
+ * The emulator keeps the disc image or executable it booted open, so hash that
+ * instead of asking. GOD/STFS packages have no extension and fall through to
+ * the file picker.
+ */
 bool ClsHookXenia::getIdentification(cl_game_identifier_t *identifier)
 {
-  return getIdentificationViaFile(identifier);
+  static const QRegularExpression reContent("\\.(iso|xex|zar)$",
+    QRegularExpression::CaseInsensitiveOption);
+
+  return getIdentificationViaOpenFile(identifier, reContent);
 }
 
 // loaded xex - purely private, unusable
@@ -59,14 +70,15 @@ bool ClsHookXenia::init(void)
   if (!ClsHook::init() || !findRegions(&combined, 1, virtual_pages))
     return false;
 
-#if CLS_XENIA_INCLUDE_4K_HEAP
   heap4k = combined;
   heap4k.base_guest = heap4k_base;
   heap4k.size = heap4k_size;
   strncpy(heap4k.title, "4K Heap", sizeof(heap4k.title));
   heap4k.title[sizeof(heap4k.title) - 1] = '\0';
-  m_MemoryRegions[region_index++] = heap4k;
+#if CL_HAVE_EDITOR
+  heap4k.ignore = CLS_XENIA_INCLUDE_4K_HEAP ? CL_FALSE : CL_TRUE;
 #endif
+  m_MemoryRegions[region_index++] = heap4k;
 
   heap64k = combined;
   heap64k.base_host = reinterpret_cast<uint8_t*>(combined.base_host) + heap4k_size;
@@ -74,11 +86,14 @@ bool ClsHookXenia::init(void)
   heap64k.size = heap64k_size;
   strncpy(heap64k.title, "64K Heap", sizeof(heap64k.title));
   heap64k.title[sizeof(heap64k.title) - 1] = '\0';
+#if CL_HAVE_EDITOR
+  heap64k.ignore = CL_FALSE;
+#endif
   m_MemoryRegions[region_index++] = heap64k;
   m_MemoryRegionCount = region_index;
 
   auto add_anchor_region = [&](uintptr_t host_anchor, cl_addr_t guest_end,
-    const char *title)
+    const char *title, bool include)
   {
     cl_memory_region_t region;
 
@@ -92,19 +107,40 @@ bool ClsHookXenia::init(void)
       region.pointer_length = 4;
       strncpy(region.title, title, sizeof(region.title));
       region.title[sizeof(region.title) - 1] = '\0';
+#if CL_HAVE_EDITOR
+      region.ignore = !include ? CL_TRUE : CL_FALSE;
+#endif
 
       m_MemoryRegions[m_MemoryRegionCount++] = region;
     }
   };
 
-#if CLS_XENIA_INCLUDE_STACK
-  add_anchor_region(0x000000027effffffULL, 0x80000000, "Stacks");
+  // The XEX ranges are split into several host mappings by page protection,
+  // so map them as one span relative to the guest membase instead of anchoring
+  auto add_fixed_region = [&](cl_addr_t guest_base, cl_addr_t size,
+    const char *title, bool include)
+  {
+    cl_memory_region_t region = combined;
+
+    if (m_MemoryRegionCount >= 16)
+      return;
+
+    region.base_host = reinterpret_cast<uint8_t*>(combined.base_host) -
+      virtual_pages.guest_base + guest_base;
+    region.base_guest = guest_base;
+    region.size = size;
+    strncpy(region.title, title, sizeof(region.title));
+    region.title[sizeof(region.title) - 1] = '\0';
+#if CL_HAVE_EDITOR
+    region.ignore = !include ? CL_TRUE : CL_FALSE;
 #endif
 
-#if CLS_XENIA_INCLUDE_XEX
-  add_anchor_region(0x000000028fffffffULL, 0x90000000, "64K XEX");
-  add_anchor_region(0x000000029fffffffULL, 0xA0000000, "4K XEX");
-#endif
+    m_MemoryRegions[m_MemoryRegionCount++] = region;
+  };
+
+  add_anchor_region(0x000000027effffffULL, 0x80000000, "Stacks", CLS_XENIA_INCLUDE_STACK);
+  add_fixed_region(0x80000000, 0x10000000, "64K XEX", CLS_XENIA_INCLUDE_XEX_64K);
+  add_fixed_region(0x90000000, 0x10000000, "4K XEX",  CLS_XENIA_INCLUDE_XEX_4K);
 
   return true;
 }

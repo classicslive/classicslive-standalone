@@ -31,11 +31,6 @@ extern "C"
 #include <QMessageBox>
 #include <QTimer>
 
-#include <fstream>
-#include <regex>
-#include <sstream>
-#include <string>
-
 static std::vector<std::unique_ptr<ClsHook>> hooks;
 static ClsNetworkManager network_manager;
 
@@ -73,7 +68,7 @@ static cl_error cls_abi_install_memory_regions(cl_memory_region_t **regions,
   {
     *region_count = hooks[0]->regionCount();
     *regions = reinterpret_cast<cl_memory_region_t*>(
-      malloc(sizeof(cl_memory_region_t) * *region_count));
+      calloc(*region_count, sizeof(cl_memory_region_t)));
     memcpy(*regions, hooks[0]->regions(),
            sizeof(cl_memory_region_t) * *region_count);
 
@@ -267,41 +262,10 @@ void ClsMain::run(void)
     cl_run();
 }
 
-std::string getProcessTitle(uint32_t pid)
-{
-  std::ostringstream path;
-  path << "/proc/" << pid << "/comm";
-
-  std::ifstream file(path.str());
-  if (!file.is_open())
-  {
-    return "";
-  }
-
-  std::string title;
-  std::getline(file, title);
-  return title;
-}
-
 static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
 {
-  cls_hook_type type = CLS_HOOK_GENERIC;
-
-  for (const auto& preset : cls_window_presets)
-  {
-#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
-    if (preset.window_class &&
-        std::regex_match(getWindowClassName(window), std::regex(preset.window_class)) &&
-        std::regex_match(getWindowTitle(window), std::regex(preset.window_title)))
-#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
-    if (preset.process_title &&
-        std::regex_match(getProcessTitle(pid), std::regex(preset.process_title)))
-#endif
-    {
-      type = preset.type;
-      break;
-    }
-  }
+  const cls_window_preset_t *preset = cls_find_preset(pid, window);
+  cls_hook_type type = preset ? preset->type : CLS_HOOK_GENERIC;
 
   switch (type)
   {
@@ -332,9 +296,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
   }
 }
 
-void ClsMain::selected(uint pid, void *window)
+static void startHook(std::unique_ptr<ClsHook> hook)
 {
-  auto hook = createHook(pid, window);
   cl_game_identifier_t identifier;
 
   memset(&identifier, 0, sizeof(identifier));
@@ -343,6 +306,11 @@ void ClsMain::selected(uint pid, void *window)
     hooks.push_back(std::move(hook));
     cl_login_and_start(identifier);
   }
+}
+
+void ClsMain::selected(uint pid, void *window)
+{
+  startHook(createHook(pid, window));
 }
 
 int main(int argc, char *argv[])

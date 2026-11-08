@@ -10,13 +10,22 @@
 #include <unistd.h>
 #endif
 
+#include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
+#include <QRegularExpression>
 #include <QString>
+
+#include <memory>
+#include <regex>
+#include <vector>
 
 ClsHook::ClsHook(unsigned pid, const cls_window_preset_t *preset, void *window)
 {
   m_ProcessId = pid;
   m_Preset = preset;
+  /* Hooks fill in only the region fields they know about */
+  memset(m_MemoryRegions, 0, sizeof(m_MemoryRegions));
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   m_Window = reinterpret_cast<HWND>(window);
 #else
@@ -188,6 +197,170 @@ bool ClsHook::getIdentificationViaFile(cl_game_identifier_t *identifier)
   }
 }
 
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+typedef struct
+{
+  PVOID Object;
+  ULONG_PTR UniqueProcessId;
+  ULONG_PTR HandleValue;
+  ULONG GrantedAccess;
+  USHORT CreatorBackTraceIndex;
+  USHORT ObjectTypeIndex;
+  ULONG HandleAttributes;
+  ULONG Reserved;
+} cls_handle_entry_t;
+
+typedef struct
+{
+  ULONG_PTR NumberOfHandles;
+  ULONG_PTR Reserved;
+  cls_handle_entry_t Handles[1];
+} cls_handle_info_t;
+
+typedef NTSTATUS (NTAPI *cls_nt_query_system_information_t)(ULONG, PVOID, ULONG, PULONG);
+
+#define CLS_SYSTEM_EXTENDED_HANDLE_INFORMATION 64
+#define CLS_STATUS_INFO_LENGTH_MISMATCH static_cast<NTSTATUS>(0xC0000004)
+
+/* Gets a snapshot of every open handle on the system */
+static std::vector<uint8_t> get_system_handles(void)
+{
+  static const auto query = reinterpret_cast<cls_nt_query_system_information_t>(
+    GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQuerySystemInformation"));
+  std::vector<uint8_t> buffer(0x100000);
+  NTSTATUS status;
+
+  if (!query)
+    return {};
+  while ((status = query(CLS_SYSTEM_EXTENDED_HANDLE_INFORMATION, buffer.data(),
+                         static_cast<ULONG>(buffer.size()), nullptr)) ==
+         CLS_STATUS_INFO_LENGTH_MISMATCH && buffer.size() < 0x10000000)
+    buffer.resize(buffer.size() * 2);
+
+  return status >= 0 ? buffer : std::vector<uint8_t>();
+}
+
+/* Finds a file the process has open whose path matches the pattern */
+QString ClsHook::findOpenFile(const QRegularExpression &pattern)
+{
+  std::vector<uint8_t> buffer;
+  HANDLE process, own_file;
+  wchar_t own_path[MAX_PATH];
+  USHORT file_type = 0;
+  QString result;
+
+  /**
+   * Object type indices change between Windows versions, so find the one for
+   * files from a file handle of our own, which the snapshot will include.
+   */
+  if (!GetModuleFileNameW(nullptr, own_path, MAX_PATH))
+    return {};
+  own_file = CreateFileW(own_path, GENERIC_READ, FILE_SHARE_READ, nullptr,
+                         OPEN_EXISTING, 0, nullptr);
+  if (own_file == INVALID_HANDLE_VALUE)
+    return {};
+  buffer = get_system_handles();
+  CloseHandle(own_file);
+  if (buffer.empty())
+    return {};
+
+  const auto *info = reinterpret_cast<const cls_handle_info_t*>(buffer.data());
+
+  for (ULONG_PTR i = 0; i < info->NumberOfHandles; i++)
+  {
+    if (info->Handles[i].UniqueProcessId == GetCurrentProcessId() &&
+        info->Handles[i].HandleValue == reinterpret_cast<ULONG_PTR>(own_file))
+    {
+      file_type = info->Handles[i].ObjectTypeIndex;
+      break;
+    }
+  }
+  if (!file_type)
+    return {};
+
+  process = OpenProcess(PROCESS_DUP_HANDLE, FALSE, m_ProcessId);
+  if (!process)
+    return {};
+
+  for (ULONG_PTR i = 0; i < info->NumberOfHandles && result.isEmpty(); i++)
+  {
+    const cls_handle_entry_t &entry = info->Handles[i];
+    HANDLE handle;
+    wchar_t path[1024];
+    DWORD length;
+
+    /* Synchronous pipes can block path queries forever; skip their masks */
+    if (entry.UniqueProcessId != m_ProcessId || entry.ObjectTypeIndex != file_type ||
+        entry.GrantedAccess == 0x0012019F || entry.GrantedAccess == 0x001A019F ||
+        entry.GrantedAccess == 0x00120189 || entry.GrantedAccess == 0x00100000)
+      continue;
+    if (!DuplicateHandle(process, reinterpret_cast<HANDLE>(entry.HandleValue),
+                         GetCurrentProcess(), &handle, 0, FALSE,
+                         DUPLICATE_SAME_ACCESS))
+      continue;
+    if (GetFileType(handle) == FILE_TYPE_DISK)
+    {
+      length = GetFinalPathNameByHandleW(handle, path, 1024,
+                                         FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+      if (length && length < 1024)
+      {
+        QString file = QString::fromWCharArray(path, static_cast<int>(length));
+
+        if (file.startsWith("\\\\?\\"))
+          file = file.mid(4);
+        file = QDir::fromNativeSeparators(file);
+        if (pattern.match(file).hasMatch())
+          result = file;
+      }
+    }
+    CloseHandle(handle);
+  }
+  CloseHandle(process);
+
+  return result;
+}
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+QString ClsHook::findOpenFile(const QRegularExpression &pattern)
+{
+  QDir fd_dir(QString("/proc/%1/fd").arg(m_ProcessId));
+
+  for (const QFileInfo &fd : fd_dir.entryInfoList(QDir::Files | QDir::System | QDir::NoDotAndDotDot))
+  {
+    QString file = fd.symLinkTarget();
+
+    if (pattern.match(file).hasMatch())
+      return file;
+  }
+
+  return {};
+}
+#else
+QString ClsHook::findOpenFile(const QRegularExpression &pattern)
+{
+  CL_UNUSED(pattern);
+  return {};
+}
+#endif
+
+bool ClsHook::getIdentificationViaOpenFile(cl_game_identifier_t *identifier,
+  const QRegularExpression &pattern)
+{
+  QString file;
+
+  if (!identifier)
+    return false;
+
+  file = findOpenFile(pattern);
+  if (file.isEmpty())
+    return getIdentificationViaFile(identifier);
+
+  identifier->type = CL_GAMEIDENTIFIER_FILE_HASH;
+  snprintf(identifier->filename, sizeof(identifier->filename), "%s",
+           file.toUtf8().constData());
+
+  return true;
+}
+
 bool ClsHook::initViaMemoryRegions(const cls_find_memory_region_t fvmr)
 {
   unsigned found = findRegions(m_MemoryRegions, 1, fvmr);
@@ -307,9 +480,13 @@ uintptr_t ClsHook::translate(cl_addr_t address)
 
 size_t ClsHook::read(void *dest, cl_addr_t address, size_t size)
 {
-  address = translate(address);
-  if (!address)
-    return 0;
+  uintptr_t host = translate(address);
+
+  return host ? readHost(dest, host, size) : 0;
+}
+
+size_t ClsHook::readHost(void *dest, uintptr_t address, size_t size)
+{
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   size_t bytes_read = 0;
 
@@ -385,9 +562,13 @@ size_t ClsHook::read(void *dest, const cl_memory_region_t *region, cl_addr_t off
 
 size_t ClsHook::write(const void *src, cl_addr_t address, size_t size)
 {
-  address = translate(address);
-  if (!address)
-    return 0;
+  uintptr_t host = translate(address);
+
+  return host ? writeHost(src, host, size) : 0;
+}
+
+size_t ClsHook::writeHost(const void *src, uintptr_t address, size_t size)
+{
 #if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
   size_t bytes_written = 0;
 
@@ -485,4 +666,71 @@ bool ClsHook::getWindowTitle(char *buffer, unsigned buffer_len)
 #else
   return false;
 #endif
+}
+
+/* An empty pattern matches anything */
+static bool cls_preset_match(const std::regex *pattern, const char *text)
+{
+  return !pattern || std::regex_match(text, *pattern);
+}
+
+const cls_window_preset_t *cls_find_preset(unsigned pid, void *window)
+{
+  typedef struct
+  {
+    const cls_window_preset_t *preset;
+    std::unique_ptr<std::regex> first;
+    std::unique_ptr<std::regex> second;
+  } cls_compiled_preset_t;
+
+  static std::vector<cls_compiled_preset_t> compiled = []()
+  {
+    std::vector<cls_compiled_preset_t> list;
+    auto compile = [](const char *pattern)
+    {
+      return pattern && pattern[0] ?
+        std::make_unique<std::regex>(pattern) : nullptr;
+    };
+
+    for (const auto &preset : cls_window_presets)
+    {
+      if (preset.type == CLS_HOOK_GENERIC)
+        continue;
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+      list.push_back({ &preset, compile(preset.window_class),
+                       compile(preset.window_title) });
+#else
+      list.push_back({ &preset, compile(preset.process_title), nullptr });
+#endif
+    }
+
+    return list;
+  }();
+  char first[256] = "";
+  char second[256] = "";
+
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+  CL_UNUSED(pid);
+  GetClassNameA(reinterpret_cast<HWND>(window), first, sizeof(first));
+  GetWindowTextA(reinterpret_cast<HWND>(window), second, sizeof(second));
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+  char path[64];
+  FILE *file;
+
+  CL_UNUSED(window);
+  snprintf(path, sizeof(path), "/proc/%u/comm", pid);
+  file = fopen(path, "r");
+  if (!file)
+    return nullptr;
+  if (fgets(first, sizeof(first), file))
+    first[strcspn(first, "\n")] = '\0';
+  fclose(file);
+#endif
+
+  for (const auto &entry : compiled)
+    if (cls_preset_match(entry.first.get(), first) &&
+        cls_preset_match(entry.second.get(), second))
+      return entry.preset;
+
+  return nullptr;
 }
