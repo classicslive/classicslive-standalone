@@ -5,6 +5,7 @@
 #include "hooks/infuse.h"
 #include "hooks/kemulator.h"
 #include "hooks/ryujinx.h"
+#include "hooks/shockwave.h"
 #include "hooks/touchhle.h"
 #include "hooks/vita3k.h"
 #include "hooks/xemu.h"
@@ -281,6 +282,8 @@ static std::unique_ptr<ClsHook> createHook(uint pid, void *window)
     return std::make_unique<ClsHookKemulator>(pid, nullptr, window);
   case CLS_HOOK_RYUJINX:
     return std::make_unique<ClsHookRyujinx>(pid, nullptr, window);
+  case CLS_HOOK_SHOCKWAVE:
+    return std::make_unique<ClsHookShockwave>(pid, nullptr, window);
   case CLS_HOOK_TOUCHHLE:
     return std::make_unique<ClsHookTouchhle>(pid, nullptr, window);
   case CLS_HOOK_VITA3K:

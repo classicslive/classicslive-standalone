@@ -33,6 +33,7 @@ typedef enum
   CLS_HOOK_INFUSE,
   CLS_HOOK_KEMULATOR,
   CLS_HOOK_RYUJINX,
+  CLS_HOOK_SHOCKWAVE,
   CLS_HOOK_TOUCHHLE,
   CLS_HOOK_VITA3K,
   CLS_HOOK_XEMU,
@@ -185,6 +186,16 @@ const cls_window_preset_t cls_window_presets[] =
     "^AppRun.wrapped$",
 #endif
     "Azahar (AppImage)"
+  },
+
+  {
+    CLS_HOOK_SHOCKWAVE,
+#if CL_HOST_PLATFORM == _CL_PLATFORM_WINDOWS
+    "", ".*(Shockwave|Projector).*",
+#elif CL_HOST_PLATFORM == _CL_PLATFORM_LINUX
+    "^(SPR|Projector)\\.exe$",
+#endif
+    "Shockwave"
   },
 
   {

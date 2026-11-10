@@ -51,6 +51,7 @@ HEADERS += \
   hooks/kemulator.h \
   hooks/horizon.h \
   hooks/ryujinx.h \
+  hooks/shockwave.h \
   hooks/touchhle.h \
   hooks/vita3k.h \
   hooks/xemu.h \
