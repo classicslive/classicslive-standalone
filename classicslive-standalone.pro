@@ -31,6 +31,7 @@ SOURCES += \
   hooks/infuse.cpp \
   hooks/kemulator.cpp \
   hooks/ryujinx.cpp \
+  hooks/shockwave.cpp \
   hooks/touchhle.cpp \
   hooks/vita3k.cpp \
   hooks/xemu.cpp \
