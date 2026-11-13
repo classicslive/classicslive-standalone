@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# Classics Live privileged helper.
+#
+# Run as root through pkexec. Grants or revokes CAP_SYS_PTRACE on the
+# Classics Live executable so it can read game memory with process_vm_readv()
+# on systems where Yama (kernel.yama.ptrace_scope >= 1) blocks reading
+# processes that are not its own children.
+#
+# Usage: classicslive-ptrace-helper grant|revoke /path/to/classicslive-standalone
+#
+# It does nothing else: it accepts only an existing regular ELF file named
+# classicslive-standalone, and only adds or removes cap_sys_ptrace.
+#
+# Exit codes:
+#   0  success
+#   2  bad usage
+#   3  target rejected
+#   4  setcap not found
+#   5  setcap failed
+#   6  not running as root
+
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+die()
+{
+  echo "classicslive-ptrace-helper: $2" >&2
+  exit "$1"
+}
+
+[ "$(id -u)" -eq 0 ] || die 6 "must be run as root (via pkexec)"
+[ $# -eq 2 ] || die 2 "usage: $0 grant|revoke <executable>"
+
+action=$1
+target=$(readlink -e -- "$2") || die 3 "target does not exist: $2"
+
+[ -f "$target" ] || die 3 "target is not a regular file: $target"
+[ "$(basename -- "$target")" = "classicslive-standalone" ] ||
+  die 3 "target is not the Classics Live executable: $target"
+[ "$(head -c 4 -- "$target" | od -An -c | tr -d ' \n')" = "177ELF" ] ||
+  die 3 "target is not an ELF executable: $target"
+
+command -v setcap >/dev/null 2>&1 ||
+  die 4 "setcap not found (install libcap2-bin or libcap)"
+
+case "$action" in
+  grant)
+    setcap cap_sys_ptrace+ep "$target" || die 5 "setcap failed on $target"
+    ;;
+  revoke)
+    # Removing a capability that was never set is not an error
+    if getcap "$target" 2>/dev/null | grep -q .; then
+      setcap -r "$target" || die 5 "setcap -r failed on $target"
+    fi
+    ;;
+  *)
+    die 2 "unknown action: $action"
+    ;;
+esac
+
+exit 0

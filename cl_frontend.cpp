@@ -14,6 +14,7 @@
 #include "cls_login_dialog.h"
 #include "cls_main.h"
 #include "cls_network_manager.h"
+#include "cls_permissions.h"
 #include "cls_process_select.h"
 #include "cls_thread.h"
 
@@ -29,6 +30,7 @@ extern "C"
 #include <QCloseEvent>
 #include <QFileDialog>
 #include <QMainWindow>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QTimer>
 
@@ -248,6 +250,13 @@ ClsMain::ClsMain(void)
   connect(m_ProcessSelect, SIGNAL(selected(uint,void*)),
           this, SLOT(selected(uint,void*)));
   m_ProcessSelect->show();
+
+  QMenu *settings = menuBar()->addMenu(tr("&Settings"));
+  connect(settings->addAction(tr("&Permissions...")), &QAction::triggered, this, [this]()
+  {
+    ClsPermissionsDialog dialog(this);
+    dialog.exec();
+  });
 }
 
 void ClsMain::closeEvent(QCloseEvent *event)
@@ -313,7 +322,17 @@ static void startHook(std::unique_ptr<ClsHook> hook)
 
 void ClsMain::selected(uint pid, void *window)
 {
-  startHook(createHook(pid, window));
+  /* Make sure the process memory can be read before hooking it */
+  if (cls_permission_ensure(pid))
+    startHook(createHook(pid, window));
+}
+
+void ClsMain::resumeHook(uint pid)
+{
+  cls_permission_resume(pid, [pid]()
+  {
+    startHook(createHook(pid, nullptr));
+  });
 }
 
 int main(int argc, char *argv[])
@@ -324,6 +343,19 @@ int main(int argc, char *argv[])
   clsmain.show();
 
   cl_abi_register(&cls_abi);
+
+  /* Restarted after being granted memory access; finish hooking */
+  QStringList args = a.arguments();
+  int resume = args.indexOf(CLS_RESUME_HOOK_ARG);
+
+  if (resume >= 0 && resume + 1 < args.size())
+  {
+    bool ok;
+    uint pid = args[resume + 1].toUInt(&ok);
+
+    if (ok && pid)
+      QTimer::singleShot(0, &clsmain, [&clsmain, pid]() { clsmain.resumeHook(pid); });
+  }
 
   return a.exec();
 }

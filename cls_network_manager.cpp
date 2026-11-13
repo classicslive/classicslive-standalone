@@ -70,7 +70,7 @@ void ClsNetworkManager::onRequest(QString url, QString data, cls_net_cb callback
   request.setUrl(QUrl(url));
 
   QByteArray post_data;
-  post_data.append(data);
+  post_data.append(data.toUtf8());
 
   QNetworkReply *reply = post(request, post_data);
   m_Requests.insert(std::pair<QNetworkReply*, cls_net_cb>(reply, callback));

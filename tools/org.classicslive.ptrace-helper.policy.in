@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Classics Live</vendor>
+  <vendor_url>https://github.com/classicslive/classicslive-standalone</vendor_url>
+
+  <action id="org.classicslive.ptrace-helper">
+    <description>Allow Classics Live to read game memory</description>
+    <message>Classics Live needs administrator approval to read the memory of running games.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@CLS_HELPER_PATH@</annotate>
+  </action>
+</policyconfig>
