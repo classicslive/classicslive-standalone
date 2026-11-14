@@ -241,6 +241,8 @@ const cl_abi_t cls_abi
 
 ClsMain::ClsMain(void)
 {
+  QMenu *settings;
+
   m_Timer = new QTimer(this);
   m_Timer->setInterval(16);
   connect(m_Timer, SIGNAL(timeout()), this, SLOT(run()));
@@ -251,12 +253,16 @@ ClsMain::ClsMain(void)
           this, SLOT(selected(uint,void*)));
   m_ProcessSelect->show();
 
-  QMenu *settings = menuBar()->addMenu(tr("&Settings"));
-  connect(settings->addAction(tr("&Permissions...")), &QAction::triggered, this, [this]()
-  {
-    ClsPermissionsDialog dialog(this);
-    dialog.exec();
-  });
+  settings = menuBar()->addMenu(tr("&Settings"));
+  connect(settings->addAction(tr("&Permissions...")), &QAction::triggered,
+          this, &ClsMain::showPermissions);
+}
+
+void ClsMain::showPermissions(void)
+{
+  ClsPermissionsDialog dialog(this);
+
+  dialog.exec();
 }
 
 void ClsMain::closeEvent(QCloseEvent *event)
@@ -327,12 +333,17 @@ void ClsMain::selected(uint pid, void *window)
     startHook(createHook(pid, window));
 }
 
-void ClsMain::resumeHook(uint pid)
+void ClsMain::resumeHook(void)
 {
-  cls_permission_resume(pid, [pid]()
-  {
+  QStringList args = QCoreApplication::arguments();
+  int index = args.indexOf(CLS_RESUME_HOOK_ARG);
+  bool ok = false;
+  uint pid = 0;
+
+  if (index >= 0 && index + 1 < args.size())
+    pid = args[index + 1].toUInt(&ok);
+  if (ok && pid && cls_permission_resume(pid))
     startHook(createHook(pid, nullptr));
-  });
 }
 
 int main(int argc, char *argv[])
@@ -344,18 +355,8 @@ int main(int argc, char *argv[])
 
   cl_abi_register(&cls_abi);
 
-  /* Restarted after being granted memory access; finish hooking */
-  QStringList args = a.arguments();
-  int resume = args.indexOf(CLS_RESUME_HOOK_ARG);
-
-  if (resume >= 0 && resume + 1 < args.size())
-  {
-    bool ok;
-    uint pid = args[resume + 1].toUInt(&ok);
-
-    if (ok && pid)
-      QTimer::singleShot(0, &clsmain, [&clsmain, pid]() { clsmain.resumeHook(pid); });
-  }
+  /* Finish hooking if restarted after being granted memory access */
+  QTimer::singleShot(0, &clsmain, &ClsMain::resumeHook);
 
   return a.exec();
 }

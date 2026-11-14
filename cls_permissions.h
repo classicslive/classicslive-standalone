@@ -2,10 +2,6 @@
 #define CLS_PERMISSIONS_H
 
 #include <QDialog>
-#include <QProcess>
-#include <QString>
-
-#include <functional>
 
 class QLabel;
 class QPushButton;
@@ -39,62 +35,21 @@ bool cls_permission_ensure(unsigned pid);
 
 /**
  * Finishes a grant after the program re-executed itself: retries the read,
- * and on success shows the confirmation and calls the provided function.
+ * and on success shows the confirmation.
  * @param pid The process that was about to be hooked
- * @param proceed Called to resume hooking once the read succeeds
+ * @return Whether hooking can proceed now
  */
-void cls_permission_resume(unsigned pid, const std::function<void()> &proceed);
+bool cls_permission_resume(unsigned pid);
 
 /**
- * The step-by-step progress of a permission grant.
+ * Asks for approval before anything privileged happens.
  */
-class ClsPermissionProgressDialog : public QDialog
+class ClsPermissionRequestDialog : public QDialog
 {
   Q_OBJECT
 
 public:
-  enum Step
-  {
-    StepAuthenticate = 0,
-    StepGrant,
-    StepRetry,
-
-    StepCount
-  };
-
-  ClsPermissionProgressDialog(unsigned pid, QWidget *parent = nullptr);
-
-  /** Requests authentication and grants the capability, then restarts. */
-  void startGrant(void);
-
-  /** Retries the read after restarting with the capability. */
-  void startRetry(void);
-
-  bool succeeded(void) const { return m_Succeeded; }
-
-private slots:
-  void onHelperFinished(int exit_code, QProcess::ExitStatus status);
-  void onHelperError(QProcess::ProcessError error);
-
-private:
-  enum State
-  {
-    StatePending = 0,
-    StateRunning,
-    StateDone,
-    StateFailed
-  };
-
-  void setStep(Step step, State state);
-  void fail(Step step, const QString &message);
-  void restart(void);
-
-  unsigned m_Pid;
-  bool m_Succeeded = false;
-  QProcess *m_Helper = nullptr;
-  QLabel *m_StepIcons[StepCount];
-  QLabel *m_Error = nullptr;
-  QPushButton *m_CloseButton = nullptr;
+  ClsPermissionRequestDialog(QWidget *parent = nullptr);
 };
 
 /**
@@ -115,7 +70,6 @@ private slots:
 private:
   QLabel *m_Status = nullptr;
   QPushButton *m_RevokeButton = nullptr;
-  QProcess *m_Helper = nullptr;
 };
 
 #endif

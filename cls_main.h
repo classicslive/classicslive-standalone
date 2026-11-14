@@ -18,10 +18,12 @@ public slots:
   void selected(uint pid, void *window);
 
   /**
-   * Finishes hooking a process after restarting with newly granted memory
-   * access permission.
+   * Finishes hooking a process if the program was restarted with newly
+   * granted memory access permission.
    */
-  void resumeHook(uint pid);
+  void resumeHook(void);
+
+  void showPermissions(void);
 
 private:
   void closeEvent(QCloseEvent *event) override;
